@@ -113,9 +113,108 @@ class TestBasics(unittest.TestCase):
             with self.assertRaises(ValueError):
                 canvas.__setattr__(attrName, '#invalid')
 
+    def test_repr(self):
+        canvas = pytextcanvas.Canvas()
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=80, height=25, name=''>")
+
+        canvas = pytextcanvas.Canvas(10, 20, 'Alice')
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name='Alice'>")
+
+        canvas.name = None
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name=None>")
+
+        canvas.fg = 'black'
+        canvas.bg = 'white'
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name=None>")
+
+    def test_str(self):
+        canvas = pytextcanvas.Canvas(width=3, height=4)
+        self.assertEqual(str(canvas), '   \n   \n   \n   ')
+
+        canvas = pytextcanvas.Canvas(width=4, height=3)
+        self.assertEqual(str(canvas), '    \n    \n    ')
+
+    def test_setitem_getitem_int_tuple_key(self):
+        canvas = pytextcanvas.Canvas()
+
+        # Basic write & read
+        self.assertEqual(canvas[0], None) # chars start as None
+        canvas[0] = 'A'
+        self.assertEqual(canvas[0], 'A')
+        canvas[1] = 'B'
+        self.assertEqual(canvas[1], 'B')
 
 
+        # negative indexes
+        canvas[-1] = 'Z'
+        canvas[-2] = 'Y'
+        self.assertEqual(canvas[-1], 'Z')
+        self.assertEqual(canvas[-2], 'Y')
+        self.assertEqual(canvas[1999], 'Z')
+        self.assertEqual(canvas[1998], 'Y')
 
+        # tuple keys
+        self.assertEqual(canvas[(0, 0)], 'A')
+        self.assertEqual(canvas[(1, 0)], 'B')
+        self.assertEqual(canvas[(79, 24)], 'Z')
+        self.assertEqual(canvas[(78, 24)], 'Y')
+
+    def test_setitem_getitem_keyerror(self):
+        canvas = pytextcanvas.Canvas()
+
+        # integer key errors
+        with self.assertRaises(KeyError):
+            canvas[9999]
+
+        with self.assertRaises(KeyError):
+            canvas[0.0]
+
+        with self.assertRaises(KeyError):
+            canvas[9999] = 'A'
+
+        with self.assertRaises(KeyError):
+            canvas[0.0] = 'A'
+
+        # tuple key errors
+        with self.assertRaises(KeyError):
+            canvas[(9999, 9999)] = 'X'
+
+        with self.assertRaises(KeyError):
+            canvas[(9999, 0)] = 'X'
+
+        with self.assertRaises(KeyError):
+            canvas[(0, 9999)] = 'X'
+
+        with self.assertRaises(KeyError):
+            canvas[(9999, 9999)]
+
+        with self.assertRaises(KeyError):
+            canvas[(9999, 0)]
+
+        with self.assertRaises(KeyError):
+            canvas[(0, 9999)]
+
+        with self.assertRaises(KeyError):
+            canvas[(0.0, 0.0)]
+
+        with self.assertRaises(KeyError):
+            canvas[(0.0, 0)]
+
+        with self.assertRaises(KeyError):
+            canvas[(0, 0.0)]
+
+        with self.assertRaises(KeyError):
+            canvas[(0.0, 0.0)] = 'A'
+
+        with self.assertRaises(KeyError):
+            canvas[(0.0, 0)] = 'A'
+
+        with self.assertRaises(KeyError):
+            canvas[(0, 0.0)] = 'A'
+
+    def test_getitem_setitem_slice(self):
+        canvas = pytextcanvas.Canvas()
+        # TODO
 
 if __name__ == '__main__':
     unittest.main()

@@ -219,7 +219,10 @@ class Canvas:
 
     @name.setter
     def name(self, value):
-        self._name = str(value)
+        if value is None:
+            self._name = None
+        else:
+            self._name = str(value)
 
 
     @property
@@ -245,9 +248,8 @@ class Canvas:
         height, and name information is included, but not the foreground or
         background color. A 7-digit hexadecimal fingerprint of the content
         is given, based on the string representation of this Canvas object."""
-        return '<%r object, width=%s, height=%s, name=%s>' % \
-            (self.__class__.__name__, repr(self.width), repr(self.height),
-            repr(self.name))
+        return '<%r object, width=%r, height=%r, name=%r>' % \
+            (self.__class__.__name__, self.width, self.height, self.name)
 
 
     def __str__(self):
@@ -258,26 +260,169 @@ class Canvas:
         result = []
 
         for y in range(self.height):
+            row = []
+
+
             for x in range(self.width):
-                result.append(self.chars.get((x, y), ' '))
-            result.append('\n')
-        return ''.join(result)
+                row.append(self.chars.get((x, y), ' '))
+            result.append(''.join(row))
+        return '\n'.join(result)
 
 
     def __len__(self):
-        pass
+        """Returns the length of this Canvas object, which is the length of
+        its string as returned by str(), not the width * height.
 
-    def __add__(self):
-        pass
+        The string representation includes newline characters at the end of
+        each row, except for the last row."""
+        return (self.width * self.height) + (self.height - 1)
 
     def __iadd__(self):
         pass
 
-    def __radd__(self):
-        pass
+    def __getitem__(self, key):
+        """Return the character in this Canvas object, specified by `key`.
+        The `key` can be a tuple of integers (x, y) or a single integer
+        (treating the Canvas as a single-lined string). This integer can
+        also be negative to return a character from the end of the string.
 
-    def __getitem__(self):
-        pass # use this to get a subsection of the Canvas
+        The `key` can also be a slice object of two tuples which represents
+        the top left and bottom right corners of the area to return as a new
+        Canvas object. The slice cannot be made up of two integers.
+
+        Leaving the first item in the slice defaults to the top left corner
+        of the canvas, while leaving the second item in the slice efaults
+        to the bottom right corner of the object. Using [:] is the syntax
+        to get a copy of the canvas.
+
+        This method only raises KeyError, never IndexError."""
+        if isinstance(key, (int, tuple)):
+            x, y = self._checkKey(key)
+            return self.chars.get((x, y), None)
+        elif isinstance(key, slice):
+            pass
+        else:
+            raise KeyError('key must be an int or tuple of two ints')
+
+    def __setitem__(self, key, value):
+        if isinstance(key, (int, tuple)):
+            value = str(value)
+            if len(value) != 1:
+                raise ValueError('value must have a length of 1')
+
+            x, y = self._checkKey(key)
+
+            self.chars[(x, y)] = value
+        elif isinstance(key, slice):
+            pass
+        else:
+            raise KeyError('key must be an int or tuple of two ints')
+
+
+    def _checkKey(self, key):
+        """Returns an (x, y) tuple key for all integer/tuple key formats.
+
+        >>> canvas = Canvas()
+        >>> canvas._checkKey(0)
+        (0, 0)
+        >>> canvas._checkKey(1)
+        (1, 0)
+        >>> canvas._checkKey(80)
+        (0, 1)
+        >>> canvas._checkKey(-1)
+        (79, 24)
+        >>> canvas._checkKey(-2)
+        (78, 24)
+        >>> canvas._checkKey((0, 0))
+        (0, 0)
+        >>> canvas._checkKey((-1, 0))
+        (79, 0)
+        >>> canvas._checkKey((0, -1))
+        (0, 24)
+        >>> canvas._checkKey((-2, -2))
+        (78, 23)
+        """
+        if isinstance(key, int):
+            key = self._convertNegativeIndexToPositiveIndex(key)
+            key = self._convertPositiveIntegerIndexToKeyTuple(key)
+
+        x, y = self._convertNegativeTupleKeyToPositiveTupleKey(key)
+        return x, y
+
+
+    def _convertNegativeIndexToPositiveIndex(self, negKey):
+        """Returns a positive integer index given a negative integer index.
+
+        >>> canvas = Canvas()
+        >>> canvas._convertNegativeIndexToPositiveIndex(0)
+        0
+        >>> canvas._convertNegativeIndexToPositiveIndex(-1)
+        1999
+        >>> canvas._convertNegativeIndexToPositiveIndex(-2)
+        1998
+        """
+        if negKey < 0:
+            if -negKey > (self.width * self.height):
+                raise KeyError('key %r is out of range' % (negKey))
+
+            return (self.width * self.height) + negKey
+        else:
+            return negKey # return the original key
+
+
+    def _convertPositiveIntegerIndexToKeyTuple(self, intKey):
+        """Returns an (x, y) tuple from an integer index.
+
+        >>> canvas = Canvas()
+        >>> canvas._convertPositiveIntegerIndexToKeyTuple(0)
+        (0, 0)
+        >>> canvas._convertPositiveIntegerIndexToKeyTuple(80)
+        (0, 1)
+        >>> canvas._convertPositiveIntegerIndexToKeyTuple(85)
+        (5, 1)
+        """
+        if intKey < 0 or intKey >= (self.width * self.height):
+            raise KeyError('key %r is out of range' % (intKey))
+
+        return intKey % self.width, intKey // self.width
+
+
+    def _convertNegativeTupleKeyToPositiveTupleKey(self, tupleKey):
+        """Returns a tuple key with positive integers instead of negative
+        integers.
+
+        >>> canvas = Canvas()
+        >>> canvas._convertNegativeTupleKeyToPositiveTupleKey((-1, -1))
+        (79, 24)
+        >>> canvas._convertNegativeTupleKeyToPositiveTupleKey((-1, 0))
+        (79, 0)
+        >>> canvas._convertNegativeTupleKeyToPositiveTupleKey((0, -1))
+        (0, 24)
+        >>> canvas._convertNegativeTupleKeyToPositiveTupleKey((0, 0))
+        (0, 0)
+        """
+        # check that tuple key is well formed: two ints as (x, y)
+
+        if len(tupleKey) != 2 or not isinstance(tupleKey[0], int) or not isinstance(tupleKey[1], int):
+            raise KeyError('key must be an int or tuple of two ints')
+
+        x, y = tupleKey # syntactic sugar
+
+        # check x and y are in range
+        if not (-self.width <= x < self.width):
+            raise KeyError('key\'s x (`%r`) is out of range' % (x))
+        if not (-self.height <= y < self.height):
+            raise KeyError('key\'s y (`%r`) is out of range' % (y))
+
+        # convert negative x & y to corresponding x & y
+        if x < 0:
+            x = self.width + x
+        if y < 0:
+            y = self.height + y
+
+        return x, y
+
+
 
     def translate(self):
         pass
