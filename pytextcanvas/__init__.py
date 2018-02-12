@@ -1,5 +1,16 @@
 # PyTextCanvas by Al Sweigart al@inventwithpython.com
 
+
+"""
+TODO
+
+Design considerations:
+- Canvas must track steps for undo/redo
+- Canvas must track the written areas for clipping. This won't include use of fill.
+
+
+"""
+
 import doctest
 import textwrap
 
@@ -12,27 +23,40 @@ def format(*args, default=' '):
     pass
 
 
+# Constants for headings
+NORTH = 'north'
+SOUTH = 'south'
+EAST = 'east'
+WEST = 'west'
+
 # Based off of the CSS3 standard names. Data from James Bennett's webcolors module: https://github.com/ubernostrum/webcolors
 COLOR_NAMES_TO_HEX = {'aliceblue': '#f0f8ff','antiquewhite': '#faebd7','aqua': '#00ffff','aquamarine': '#7fffd4','azure': '#f0ffff','beige': '#f5f5dc','bisque': '#ffe4c4','black': '#000000','blanchedalmond': '#ffebcd','blue': '#0000ff','blueviolet': '#8a2be2','brown': '#a52a2a','burlywood': '#deb887','cadetblue': '#5f9ea0','chartreuse': '#7fff00','chocolate': '#d2691e','coral': '#ff7f50','cornflowerblue': '#6495ed','cornsilk': '#fff8dc','crimson': '#dc143c','cyan': '#00ffff','darkblue': '#00008b','darkcyan': '#008b8b','darkgoldenrod': '#b8860b','darkgray': '#a9a9a9','darkgrey': '#a9a9a9','darkgreen': '#006400','darkkhaki': '#bdb76b','darkmagenta': '#8b008b','darkolivegreen': '#556b2f','darkorange': '#ff8c00','darkorchid': '#9932cc','darkred': '#8b0000','darksalmon': '#e9967a','darkseagreen': '#8fbc8f','darkslateblue': '#483d8b','darkslategray': '#2f4f4f','darkslategrey': '#2f4f4f','darkturquoise': '#00ced1','darkviolet': '#9400d3','deeppink': '#ff1493','deepskyblue': '#00bfff','dimgray': '#696969','dimgrey': '#696969','dodgerblue': '#1e90ff','firebrick': '#b22222','floralwhite': '#fffaf0','forestgreen': '#228b22','fuchsia': '#ff00ff','gainsboro': '#dcdcdc','ghostwhite': '#f8f8ff','gold': '#ffd700','goldenrod': '#daa520','gray': '#808080','grey': '#808080','green': '#008000','greenyellow': '#adff2f','honeydew': '#f0fff0','hotpink': '#ff69b4','indianred': '#cd5c5c','indigo': '#4b0082','ivory': '#fffff0','khaki': '#f0e68c','lavender': '#e6e6fa','lavenderblush': '#fff0f5','lawngreen': '#7cfc00','lemonchiffon': '#fffacd','lightblue': '#add8e6','lightcoral': '#f08080','lightcyan': '#e0ffff','lightgoldenrodyellow': '#fafad2','lightgray': '#d3d3d3','lightgrey': '#d3d3d3','lightgreen': '#90ee90','lightpink': '#ffb6c1','lightsalmon': '#ffa07a','lightseagreen': '#20b2aa','lightskyblue': '#87cefa','lightslategray': '#778899','lightslategrey': '#778899','lightsteelblue': '#b0c4de','lightyellow': '#ffffe0','lime': '#00ff00','limegreen': '#32cd32','linen': '#faf0e6','magenta': '#ff00ff','maroon': '#800000','mediumaquamarine': '#66cdaa','mediumblue': '#0000cd','mediumorchid': '#ba55d3','mediumpurple': '#9370db','mediumseagreen': '#3cb371','mediumslateblue': '#7b68ee','mediumspringgreen': '#00fa9a','mediumturquoise': '#48d1cc','mediumvioletred': '#c71585','midnightblue': '#191970','mintcream': '#f5fffa','mistyrose': '#ffe4e1','moccasin': '#ffe4b5','navajowhite': '#ffdead','navy': '#000080','oldlace': '#fdf5e6','olive': '#808000','olivedrab': '#6b8e23','orange': '#ffa500','orangered': '#ff4500','orchid': '#da70d6','palegoldenrod': '#eee8aa','palegreen': '#98fb98','paleturquoise': '#afeeee','palevioletred': '#db7093','papayawhip': '#ffefd5','peachpuff': '#ffdab9','per': '#cd853f','pink': '#ffc0cb','plum': '#dda0dd','powderblue': '#b0e0e6','purple': '#800080','red': '#ff0000','rosybrown': '#bc8f8f','royalblue': '#4169e1','saddlebrown': '#8b4513','salmon': '#fa8072','sandybrown': '#f4a460','seagreen': '#2e8b57','seashell': '#fff5ee','sienna': '#a0522d','silver': '#c0c0c0','skyblue': '#87ceeb','slateblue': '#6a5acd','slategray': '#708090','slategrey': '#708090','snow': '#fffafa','springgreen': '#00ff7f','steelblue': '#4682b4','tan': '#d2b48c','teal': '#008080','thistle': '#d8bfd8','tomato': '#ff6347','turquoise': '#40e0d0','violet': '#ee82ee','wheat': '#f5deb3','white': '#ffffff','whitesmoke': '#f5f5f5','yellow': '#ffff00','yellowgreen': '#9acd32',}
 
-def hex_color(color):
-    """
-    Converts the `color` parameter to a standard '#ffffff' color string of a # followed by six hexadecimal digits. The `color` parameter can formatted as a CSS3 name, #ffffff, ffffff, #fff, or fff.
+def normalizeHtmlColor(color):
+    """Converts the `color` parameter to a standard '#ffffff' color string of
+    a # followed by six hexadecimal digits. The `color` parameter can
+    formatted as a CSS3 name, #ffffff, ffffff, #fff, or fff. If `color` is a
+    valid HTML name (and appears as a key in the COLOR_NAMES_TO_HEX mapping),
+    the lowercase form of the name is returned instead.
 
     TODO: Expand to include rgb triplet integers, and three percentages?
 
-    >>> hex_color('white')
+    >>> normalizeHtmlColor('white')
+    'white'
+    >>> normalizeHtmlColor('WHITE')
+    'white'
+    >>> normalizeHtmlColor('#ffffff')
     '#ffffff'
-    >>> hex_color('#ffffff')
+    >>> normalizeHtmlColor('#fff')
     '#ffffff'
-    >>> hex_color('#fff')
+    >>> normalizeHtmlColor('ffffff')
     '#ffffff'
-    >>> hex_color('ffffff')
+    >>> normalizeHtmlColor('fff')
     '#ffffff'
-    >>> hex_color('fff')
-    '#ffffff'
-    >>> hex_color('#abc')
+    >>> normalizeHtmlColor('#abc')
     '#aabbcc'
+    >>> normalizeHtmlColor('FFFFFF')
+    '#ffffff'
     """
     if type(color) != str:
         raise TypeError('Parameter `color` must be of type str, not %s.' % (type(color)))
@@ -40,7 +64,7 @@ def hex_color(color):
     color = color.lower() # normalize to lowercase
 
     if color in COLOR_NAMES_TO_HEX:
-        return COLOR_NAMES_TO_HEX[color]
+        return color
 
     if color.startswith('#'):
         color = color[1:] # remove the leading #
@@ -56,6 +80,8 @@ def hex_color(color):
     except ValueError:
         raise ValueError('Parameter `color` must be a hexadecimal number, not %s.' % (type(color)))
 
+class ColorNameException(Exception):
+    pass
 
 # from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Python
 def get_line_points(x1, y1, x2, y2):
@@ -81,17 +107,19 @@ def get_line_points(x1, y1, x2, y2):
     >>> get_line_points(3, 3, -3, -3)
     [(3, 3), (2, 2), (1, 1), (0, 0), (-1, -1), (-2, -2), (-3, -3)]
     """
+
+    # TODO - convert this to a generator/iterable
+
     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
     points = []
     issteep = abs(y2-y1) > abs(x2-x1)
     if issteep:
         x1, y1 = y1, x1
         x2, y2 = y2, x2
-    rev = False
-    if x1 > x2:
+    rev = x1 > x2
+    if rev:
         x1, x2 = x2, x1
         y1, y2 = y2, y1
-        rev = True
     deltax = x2 - x1
     deltay = abs(y2-y1)
     error = int(deltax / 2)
@@ -139,14 +167,102 @@ def is_inside(point_x, point_y, area_left, area_top, area_width, area_height):
 
 
 class Canvas:
-    def __init__(self):
-        pass
+    def __init__(self, width=80, height=25, name='', fg='#daa520', bg='#000000'):
+        try:
+            self._width = int(width)
+        except (TypeError, ValueError):
+            raise TypeError('`width` arg must be a string, a bytes-like object or a number, not %r' % (width.__class__.__name__))
+
+        if self._width < 1:
+            raise ValueError('`width` arg must be 1 or greater, not %r' % (width))
+
+        try:
+            self._height = int(height)
+        except (TypeError, ValueError):
+            raise TypeError('`height` arg must be a string, a bytes-like object or a number, not %r' % (height.__class__.__name__))
+
+        if self._height < 1:
+            raise ValueError('`height` arg must be 1 or greater, not %r' % (height))
+
+        self.name = name
+        self.fg = fg
+        self.bg = bg
+
+        self.chars = {}
+
+        self.cursor = (0, 0)
+        self.heading = EAST
+        self.penIsDown = True
+
+
+    @property
+    def width(self):
+        return self._width
+
+    @width.setter
+    def width(self, value):
+        raise TypeError('%r width is immutable' % (self.__class__.__name__))
+
+
+    @property
+    def height(self):
+        return self._height
+
+    @height.setter
+    def height(self, value):
+        raise TypeError('%r height is immutable' % (self.__class__.__name__))
+
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = str(value)
+
+
+    @property
+    def fg(self):
+        return self._fg
+
+    @fg.setter
+    def fg(self, value):
+        self._fg = normalizeHtmlColor(value)
+
+
+    @property
+    def bg(self):
+        return self._bg
+
+    @bg.setter
+    def bg(self, value):
+        self._bg = normalizeHtmlColor(value)
+
 
     def __repr__(self):
-        pass
+        """Return a limited representation of this Canvas object. The width,
+        height, and name information is included, but not the foreground or
+        background color. A 7-digit hexadecimal fingerprint of the content
+        is given, based on the string representation of this Canvas object."""
+        return '<%r object, width=%s, height=%s, name=%s>' % \
+            (self.__class__.__name__, repr(self.width), repr(self.height),
+            repr(self.name))
+
 
     def __str__(self):
-        pass
+        """Return a multiline string representation of this Canvas object.
+        The bottom row does not end with a newline character."""
+
+        # TODO - make this thread safe
+        result = []
+
+        for y in range(self.height):
+            for x in range(self.width):
+                result.append(self.chars.get((x, y), ' '))
+            result.append('\n')
+        return ''.join(result)
+
 
     def __len__(self):
         pass
@@ -160,20 +276,34 @@ class Canvas:
     def __radd__(self):
         pass
 
+    def __getitem__(self):
+        pass # use this to get a subsection of the Canvas
+
     def translate(self):
         pass
-
-    def setview(self):
-        pass # like __str__() but for a subsection
-
-        # TODO - by default, canvases have infinite dimensions.
-        # Their "view" is what determines what gets printed. This acts as a
-        # basic camera system.
 
     def htmlstr(self):
         pass
 
     def copy(self):
+        pass
+
+    def rotate(self):
+        pass
+
+    def scale(self):
+        pass
+
+    def flip(self, vertical=False, horizontal=False):
+        pass
+
+    def vflip(self):
+        self.flip(vertical=True, horizontal=False)
+
+    def hflip(self):
+        self.flip(vertical=False, horizontal=True)
+
+    def box(self):
         pass
 
     def fill(self):
@@ -191,6 +321,18 @@ class Canvas:
     def rect(self, *args):
         pass
 
+    def diamond(self, *args):
+        pass
+
+    def hexagon(self):
+        pass
+
+    def arrow(self):
+        pass
+
+    def corner(self):
+        pass # must be "horizontal" or "vertical"
+
     def line(self):
         pass
 
@@ -207,6 +349,12 @@ class Canvas:
         pass
 
     def arc(self):
+        pass
+
+    def undo(self):
+        pass
+
+    def redo(self):
         pass
 
 # TODO - should I use camelcase? I want to match the original Turtle module, but it uses, well, just lowercase.
@@ -367,3 +515,9 @@ class Cursor:
 
     def isvisible(self):
         pass
+
+
+
+
+if __name__ == '__main__':
+    doctest.testmod()
