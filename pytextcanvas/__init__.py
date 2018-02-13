@@ -168,7 +168,7 @@ def is_inside(point_x, point_y, area_left, area_top, area_width, area_height):
 
 
 class Canvas:
-    def __init__(self, width=80, height=25, name='', fg='#daa520', bg='#000000'):
+    def __init__(self, width=80, height=25, name=''):
         try:
             self._width = int(width)
         except (TypeError, ValueError):
@@ -186,12 +186,7 @@ class Canvas:
             raise ValueError('`height` arg must be 1 or greater, not %r' % (height))
 
         self.name = name
-        self.fg = fg
-        self.bg = bg
-
         self.chars = {}
-        self.fgcolor = {}
-        self.bgcolor = {}
 
         self.cursor = (0, 0) # NOTE: Internally, the cursor is set to two floats. These can be viewed with `position`, but `cursor` always returns ints.
         self.position = (0.0, 0.0) # NOTE: Unlike cursor, negative indexing can't be used for position.
@@ -235,24 +230,6 @@ class Canvas:
             self._name = None
         else:
             self._name = str(value)
-
-
-    @property
-    def fg(self):
-        return self._fg
-
-    @fg.setter
-    def fg(self, value):
-        self._fg = normalizeHtmlColor(value)
-
-
-    @property
-    def bg(self):
-        return self._bg
-
-    @bg.setter
-    def bg(self, value):
-        self._bg = normalizeHtmlColor(value)
 
 
     @property
@@ -472,16 +449,11 @@ class Canvas:
 
         for x in range(self.width):
             for y in range(self.height):
-                if self[x, y] != other[x, y] or \
-                   self.fgcolor.get((x, y), None) != other.fgcolor.get((x, y), None) or \
-                   self.bgcolor.get((x, y), None) != other.bgcolor.get((x, y), None):
+                if self[x, y] != other[x, y]:
                     return False
         return True
 
     def shift(self):
-        pass
-
-    def htmlstr(self):
         pass
 
     def copy(self):

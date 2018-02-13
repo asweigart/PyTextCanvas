@@ -21,8 +21,6 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas.width, 80)
         self.assertEqual(canvas.height, 25)
         self.assertEqual(canvas.name, '')
-        self.assertEqual(canvas.fg, '#daa520')
-        self.assertEqual(canvas.bg, '#000000')
         self.assertEqual(repr(canvas), "<'Canvas' object, width=80, height=25, name=''>")
 
         self.assertEqual(canvas.cursor, (0, 0))
@@ -30,13 +28,11 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas.penIsDown, False)
 
 
-        for canvas in (pytextcanvas.Canvas(width=20, height=10, name='Alice', fg='#ffffff', bg='#eeeeee'),
-                       pytextcanvas.Canvas(20, 10, 'Alice', '#ffffff', '#eeeeee')):
+        for canvas in (pytextcanvas.Canvas(width=20, height=10, name='Alice'),
+                       pytextcanvas.Canvas(20, 10, 'Alice')):
             self.assertEqual(canvas.width, 20)
             self.assertEqual(canvas.height, 10)
             self.assertEqual(canvas.name, 'Alice')
-            self.assertEqual(canvas.fg, '#ffffff')
-            self.assertEqual(canvas.bg, '#eeeeee')
             self.assertEqual(repr(canvas), "<'Canvas' object, width=20, height=10, name='Alice'>")
 
 
@@ -87,32 +83,6 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas.name, '')
 
 
-    def test_fg_bg(self):
-        for attrName in ('fg', 'bg'):
-            canvas = pytextcanvas.Canvas()
-            canvas.__setattr__(attrName, 'black')
-            self.assertEqual(canvas.__getattribute__(attrName), 'black')
-
-            canvas.__setattr__(attrName, '#000000')
-            self.assertEqual(canvas.__getattribute__(attrName), '#000000')
-
-            canvas.__setattr__(attrName, '#eee')
-            self.assertEqual(canvas.__getattribute__(attrName), '#eeeeee')
-
-            canvas.__setattr__(attrName, 'dddddd')
-            self.assertEqual(canvas.__getattribute__(attrName), '#dddddd')
-
-            canvas.__setattr__(attrName, 'bbb')
-            self.assertEqual(canvas.__getattribute__(attrName), '#bbbbbb')
-
-            canvas.__setattr__(attrName, '#FFFFFF')
-            self.assertEqual(canvas.__getattribute__(attrName), '#ffffff')
-
-            with self.assertRaises(ValueError):
-                canvas.__setattr__(attrName, 'invalid')
-
-            with self.assertRaises(ValueError):
-                canvas.__setattr__(attrName, '#invalid')
 
     def test_repr(self):
         canvas = pytextcanvas.Canvas()
@@ -124,9 +94,6 @@ class TestBasics(unittest.TestCase):
         canvas.name = None
         self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name=None>")
 
-        canvas.fg = 'black'
-        canvas.bg = 'white'
-        self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name=None>")
 
     def test_str(self):
         canvas = pytextcanvas.Canvas(width=3, height=4)
@@ -159,136 +126,6 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas[(1, 0)], 'B')
         self.assertEqual(canvas[(79, 24)], 'Z')
         self.assertEqual(canvas[(78, 24)], 'Y')
-
-    def test_setitem_getitem_fg_bg(self):
-
-
-        # basic color changing
-        for attrName in ('fgcolor', 'bgcolor'):
-            canvas = pytextcanvas.Canvas()
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), None)
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), 'black')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), 'black')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), '#ffffff')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), '#ffffff')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), '#eee')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), '#eeeeee')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), 'dddddd')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), '#dddddd')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), 'ccc')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), '#cccccc')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), 'WHITE')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), 'white')
-
-            canvas.__getattribute__(attrName).__setitem__((0, 0), '#AAaaaa')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((0, 0)), '#aaaaaa')
-
-            canvas.__getattribute__(attrName).__setitem__(0, 'green')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__(0), 'green')
-
-            canvas.__getattribute__(attrName).__setitem__(-1, 'red')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__(-1), 'red')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__(1999), 'red')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((79, 24)), 'red')
-
-            canvas.__getattribute__(attrName).__setitem__(-2, 'blue')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__(-2), 'blue')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__(1998), 'blue')
-            self.assertEqual(canvas.__getattribute__(attrName).__getitem__((78, 24)), 'blue')
-
-    def test_setitem_getitem_fg_bg_keyerror(self):
-        for attrName in ('fgcolor', 'bgcolor'):
-            canvas = pytextcanvas.Canvas()
-
-            # integer key errors
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__(9999)
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__(0.0)
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__(-9999)
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__('invalid')
-
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__(9999, 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__(0.0, 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__(-9999, 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__('invalid', 'black')
-
-
-            # tuple key errors
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((9999, 9999))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((9999, 0))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((0, 9999))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((-9999, -9999))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((-9999, 0))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((0, -9999))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((0.0, 0.0))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((0, 0.0))
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__getitem__((0.0, 0))
-
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((9999, 9999), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((9999, 0), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((0, 9999), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((-9999, -9999), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((-9999, 0), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((0, -9999), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((0.0, 0.0), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((0, 0.0), 'black')
-
-            with self.assertRaises(KeyError):
-                canvas.__getattribute__(attrName).__setitem__((0.0, 0), 'black')
-
 
 
 
@@ -358,8 +195,8 @@ class TestBasics(unittest.TestCase):
         self.assertNotEqual(pytextcanvas.Canvas(), pytextcanvas.Canvas(width=81))
         self.assertNotEqual(pytextcanvas.Canvas(), pytextcanvas.Canvas(height=26))
 
-        # fg and bg color, cursor settings don't affect equality
-        canvas = pytextcanvas.Canvas(fg='green', bg='purple')
+        # cursor setting doesn't affect equality
+        canvas = pytextcanvas.Canvas()
         canvas.cursor = (1, 1)
         self.assertEqual(canvas, pytextcanvas.Canvas())
 
@@ -369,19 +206,8 @@ class TestBasics(unittest.TestCase):
         canvas[0] = None
         self.assertEqual(canvas, pytextcanvas.Canvas())
 
-        # changing fg and bg color settings does affect equality
-        canvas.fgcolor[0, 0] = 'black' # LEFT OFF
-        self.assertNotEqual(canvas, pytextcanvas.Canvas())
-        canvas.fgcolor[0, 0] = None
-        self.assertEqual(canvas, pytextcanvas.Canvas())
-        canvas.bgcolor[0, 0] = 'black'
-        self.assertNotEqual(canvas, pytextcanvas.Canvas())
-
 
     def test_shift(self):
-        pass
-
-    def test_htmlstr(self):
         pass
 
     def test_copy(self):
