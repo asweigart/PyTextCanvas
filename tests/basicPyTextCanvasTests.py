@@ -106,87 +106,74 @@ class TestBasics(unittest.TestCase):
         canvas = pytextcanvas.Canvas()
 
         # Basic write & read
-        self.assertEqual(canvas[0], None) # chars start as None
-        canvas[0] = 'A'
-        self.assertEqual(canvas[0], 'A')
-        canvas[1] = 'B'
-        self.assertEqual(canvas[1], 'B')
-
+        self.assertEqual(canvas[0, 0], None) # chars start as None
+        canvas[0, 0] = 'A'
+        self.assertEqual(canvas[0, 0], 'A')
+        canvas[1, 0] = 'B'
+        self.assertEqual(canvas[1, 0], 'B')
 
         # negative indexes
-        canvas[-1] = 'Z'
-        canvas[-2] = 'Y'
-        self.assertEqual(canvas[-1], 'Z')
-        self.assertEqual(canvas[-2], 'Y')
-        self.assertEqual(canvas[1999], 'Z')
-        self.assertEqual(canvas[1998], 'Y')
-
-        # tuple keys
-        self.assertEqual(canvas[(0, 0)], 'A')
-        self.assertEqual(canvas[(1, 0)], 'B')
-        self.assertEqual(canvas[(79, 24)], 'Z')
-        self.assertEqual(canvas[(78, 24)], 'Y')
+        canvas[-1, -1] = 'Z'
+        canvas[-2, -1] = 'Y'
+        self.assertEqual(canvas[-1, -1], 'Z')
+        self.assertEqual(canvas[-2, -1], 'Y')
+        self.assertEqual(canvas[79, 24], 'Z')
+        self.assertEqual(canvas[78, 24], 'Y')
 
 
 
     def test_setitem_getitem_keyerror(self):
         canvas = pytextcanvas.Canvas()
 
-        # integer key errors
-        with self.assertRaises(KeyError):
-            canvas[9999]
+        for key in ((9999, 99999), (9999, 0), (0, 9999),
+                    (-9999, -9999), (-9999, 0), (0, -9999),
+                    (0.0, 0), (0, 0.0), (0.0, 0.0)):
 
-        with self.assertRaises(KeyError):
-            canvas[0.0]
+            with self.assertRaises(KeyError):
+                canvas[key] = 'X'
 
-        with self.assertRaises(KeyError):
-            canvas[9999] = 'A'
+            with self.assertRaises(KeyError):
+                canvas[key]
 
-        with self.assertRaises(KeyError):
-            canvas[0.0] = 'A'
-
-        # tuple key errors
-        with self.assertRaises(KeyError):
-            canvas[(9999, 9999)] = 'X'
-
-        with self.assertRaises(KeyError):
-            canvas[(9999, 0)] = 'X'
-
-        with self.assertRaises(KeyError):
-            canvas[(0, 9999)] = 'X'
-
-        with self.assertRaises(KeyError):
-            canvas[(9999, 9999)]
-
-        with self.assertRaises(KeyError):
-            canvas[(9999, 0)]
-
-        with self.assertRaises(KeyError):
-            canvas[(0, 9999)]
-
-        with self.assertRaises(KeyError):
-            canvas[(0.0, 0.0)]
-
-        with self.assertRaises(KeyError):
-            canvas[(0.0, 0)]
-
-        with self.assertRaises(KeyError):
-            canvas[(0, 0.0)]
-
-        with self.assertRaises(KeyError):
-            canvas[(0.0, 0.0)] = 'A'
-
-        with self.assertRaises(KeyError):
-            canvas[(0.0, 0)] = 'A'
-
-        with self.assertRaises(KeyError):
-            canvas[(0, 0.0)] = 'A'
 
     def test_getitem_setitem_slice(self):
         canvas = pytextcanvas.Canvas()
 
         # basic slice
         self.assertEqual(canvas[(0,0):(80, 25)], canvas)
+        self.assertEqual(canvas[None:(80, 25)], canvas)
+        self.assertEqual(canvas[:(80, 25)], canvas)
+        self.assertEqual(canvas[(0, 0):None], canvas)
+        self.assertEqual(canvas[(0, 0):], canvas)
+        self.assertEqual(canvas[None:None], canvas)
+        self.assertEqual(canvas[:], canvas)
+        self.assertEqual(canvas[(80, 25):(0,0)], canvas)
+
+
+        subcanvas = pytextcanvas.Canvas(10, 1)
+        self.assertEqual(canvas[(0,0):(10, 1)], subcanvas)
+        self.assertEqual(canvas[(10, 1):(0,0)], subcanvas)
+
+        subcanvas = pytextcanvas.Canvas(10, 2)
+        self.assertEqual(canvas[(0,0):(10, 2)], subcanvas)
+        self.assertEqual(canvas[(10, 2):(0,0)], subcanvas)
+
+
+    def test_getitem_setitem_slice_errors(self):
+        canvas = pytextcanvas.Canvas()
+
+        with self.assertRaises(KeyError):
+            canvas[(0.0, 0):]
+
+        with self.assertRaises(KeyError):
+            canvas[(0, 0.0):]
+
+        with self.assertRaises(KeyError):
+            canvas[:(0.0, 0)]
+
+        with self.assertRaises(KeyError):
+            canvas[:(0, 0.0)]
+
 
     def test_equality(self):
         # different sizes and data types affect equality
@@ -200,10 +187,10 @@ class TestBasics(unittest.TestCase):
         canvas.cursor = (1, 1)
         self.assertEqual(canvas, pytextcanvas.Canvas())
 
-        canvas[0] = 'A'
+        canvas[0, 0] = 'A'
         self.assertNotEqual(canvas, pytextcanvas.Canvas())
 
-        canvas[0] = None
+        canvas[0, 0] = None
         self.assertEqual(canvas, pytextcanvas.Canvas())
 
 

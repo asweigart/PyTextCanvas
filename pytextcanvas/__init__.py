@@ -12,17 +12,7 @@ Design considerations:
 """
 
 import doctest
-import textwrap
-import collections
-
-def print(*args, default=' '):
-    # draw multiple layers of Canvas objects, print to stdout
-    pass
-
-def format(*args, default=' '):
-    # draw multiple layers of Canvas objects, return as string
-    pass
-
+import math
 
 # Constants for headings
 NORTH = 90.0
@@ -30,59 +20,6 @@ SOUTH = 270.0
 EAST = 0.0
 WEST = 180.0
 
-# Based off of the CSS3 standard names. Data from James Bennett's webcolors module: https://github.com/ubernostrum/webcolors
-COLOR_NAMES_TO_HEX = {'aliceblue': '#f0f8ff','antiquewhite': '#faebd7','aqua': '#00ffff','aquamarine': '#7fffd4','azure': '#f0ffff','beige': '#f5f5dc','bisque': '#ffe4c4','black': '#000000','blanchedalmond': '#ffebcd','blue': '#0000ff','blueviolet': '#8a2be2','brown': '#a52a2a','burlywood': '#deb887','cadetblue': '#5f9ea0','chartreuse': '#7fff00','chocolate': '#d2691e','coral': '#ff7f50','cornflowerblue': '#6495ed','cornsilk': '#fff8dc','crimson': '#dc143c','cyan': '#00ffff','darkblue': '#00008b','darkcyan': '#008b8b','darkgoldenrod': '#b8860b','darkgray': '#a9a9a9','darkgrey': '#a9a9a9','darkgreen': '#006400','darkkhaki': '#bdb76b','darkmagenta': '#8b008b','darkolivegreen': '#556b2f','darkorange': '#ff8c00','darkorchid': '#9932cc','darkred': '#8b0000','darksalmon': '#e9967a','darkseagreen': '#8fbc8f','darkslateblue': '#483d8b','darkslategray': '#2f4f4f','darkslategrey': '#2f4f4f','darkturquoise': '#00ced1','darkviolet': '#9400d3','deeppink': '#ff1493','deepskyblue': '#00bfff','dimgray': '#696969','dimgrey': '#696969','dodgerblue': '#1e90ff','firebrick': '#b22222','floralwhite': '#fffaf0','forestgreen': '#228b22','fuchsia': '#ff00ff','gainsboro': '#dcdcdc','ghostwhite': '#f8f8ff','gold': '#ffd700','goldenrod': '#daa520','gray': '#808080','grey': '#808080','green': '#008000','greenyellow': '#adff2f','honeydew': '#f0fff0','hotpink': '#ff69b4','indianred': '#cd5c5c','indigo': '#4b0082','ivory': '#fffff0','khaki': '#f0e68c','lavender': '#e6e6fa','lavenderblush': '#fff0f5','lawngreen': '#7cfc00','lemonchiffon': '#fffacd','lightblue': '#add8e6','lightcoral': '#f08080','lightcyan': '#e0ffff','lightgoldenrodyellow': '#fafad2','lightgray': '#d3d3d3','lightgrey': '#d3d3d3','lightgreen': '#90ee90','lightpink': '#ffb6c1','lightsalmon': '#ffa07a','lightseagreen': '#20b2aa','lightskyblue': '#87cefa','lightslategray': '#778899','lightslategrey': '#778899','lightsteelblue': '#b0c4de','lightyellow': '#ffffe0','lime': '#00ff00','limegreen': '#32cd32','linen': '#faf0e6','magenta': '#ff00ff','maroon': '#800000','mediumaquamarine': '#66cdaa','mediumblue': '#0000cd','mediumorchid': '#ba55d3','mediumpurple': '#9370db','mediumseagreen': '#3cb371','mediumslateblue': '#7b68ee','mediumspringgreen': '#00fa9a','mediumturquoise': '#48d1cc','mediumvioletred': '#c71585','midnightblue': '#191970','mintcream': '#f5fffa','mistyrose': '#ffe4e1','moccasin': '#ffe4b5','navajowhite': '#ffdead','navy': '#000080','oldlace': '#fdf5e6','olive': '#808000','olivedrab': '#6b8e23','orange': '#ffa500','orangered': '#ff4500','orchid': '#da70d6','palegoldenrod': '#eee8aa','palegreen': '#98fb98','paleturquoise': '#afeeee','palevioletred': '#db7093','papayawhip': '#ffefd5','peachpuff': '#ffdab9','per': '#cd853f','pink': '#ffc0cb','plum': '#dda0dd','powderblue': '#b0e0e6','purple': '#800080','red': '#ff0000','rosybrown': '#bc8f8f','royalblue': '#4169e1','saddlebrown': '#8b4513','salmon': '#fa8072','sandybrown': '#f4a460','seagreen': '#2e8b57','seashell': '#fff5ee','sienna': '#a0522d','silver': '#c0c0c0','skyblue': '#87ceeb','slateblue': '#6a5acd','slategray': '#708090','slategrey': '#708090','snow': '#fffafa','springgreen': '#00ff7f','steelblue': '#4682b4','tan': '#d2b48c','teal': '#008080','thistle': '#d8bfd8','tomato': '#ff6347','turquoise': '#40e0d0','violet': '#ee82ee','wheat': '#f5deb3','white': '#ffffff','whitesmoke': '#f5f5f5','yellow': '#ffff00','yellowgreen': '#9acd32',}
-
-def normalizeHtmlColor(color):
-    """Converts the `color` parameter to a standard '#ffffff' color string of
-    a # followed by six hexadecimal digits. The `color` parameter can
-    formatted as a CSS3 name, #ffffff, ffffff, #fff, or fff. If `color` is a
-    valid HTML name (and appears as a key in the COLOR_NAMES_TO_HEX mapping),
-    the lowercase form of the name is returned instead.
-
-    TODO: Expand to include rgb triplet integers, and three percentages?
-
-    >>> normalizeHtmlColor('white')
-    'white'
-    >>> normalizeHtmlColor('WHITE')
-    'white'
-    >>> normalizeHtmlColor('#ffffff')
-    '#ffffff'
-    >>> normalizeHtmlColor('#fff')
-    '#ffffff'
-    >>> normalizeHtmlColor('ffffff')
-    '#ffffff'
-    >>> normalizeHtmlColor('fff')
-    '#ffffff'
-    >>> normalizeHtmlColor('#abc')
-    '#aabbcc'
-    >>> normalizeHtmlColor('FFFFFF')
-    '#ffffff'
-    """
-    if type(color) != str:
-        raise TypeError('Parameter `color` must be of type str, not %s.' % (type(color)))
-
-    color = color.lower() # normalize to lowercase
-
-    if color in COLOR_NAMES_TO_HEX:
-        return color
-
-    if color.startswith('#'):
-        color = color[1:] # remove the leading #
-
-    try:
-        int(color, 16) # check that it's a hexadecimal number
-        if len(color) == 3:
-            return '#' + color[0] + color[0] + color[1] + color[1] + color[2] + color[2] # normalize to '#ffffff' format
-        elif len(color) == 6:
-            return '#' + color
-        else:
-            raise ValueError('Parameter `color` must be a hexadecimal number or valid color name.')
-    except ValueError:
-        raise ValueError('Parameter `color` must be a hexadecimal number, not %s.' % (type(color)))
-
-class ColorNameException(Exception):
-    pass
 
 # from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Python
 def getLinePoints(x1, y1, x2, y2):
@@ -145,23 +82,23 @@ def getLinePoints(x1, y1, x2, y2):
     return points
 
 
-def is_inside(point_x, point_y, area_left, area_top, area_width, area_height):
+def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
     '''
     Returns True if the point of point_x, point_y is inside the area described.
 
-    >>> is_inside(0, 0, 0, 0, 1, 1)
+    >>> isInside(0, 0, 0, 0, 1, 1)
     True
-    >>> is_inside(1, 0, 0, 0, 1, 1)
+    >>> isInside(1, 0, 0, 0, 1, 1)
     False
-    >>> is_inside(0, 1, 0, 0, 1, 1)
+    >>> isInside(0, 1, 0, 0, 1, 1)
     False
-    >>> is_inside(1, 1, 0, 0, 1, 1)
+    >>> isInside(1, 1, 0, 0, 1, 1)
     False
-    >>> is_inside(5, 5, 4, 4, 4, 4)
+    >>> isInside(5, 5, 4, 4, 4, 4)
     True
-    >>> is_inside(8, 8, 4, 4, 4, 4)
+    >>> isInside(8, 8, 4, 4, 4, 4)
     False
-    >>> is_inside(10, 10, 4, 4, 4, 4)
+    >>> isInside(10, 10, 4, 4, 4, 4)
     False
     '''
     return (area_left <= point_x < area_left + area_width) and (area_top <= point_y < area_top + area_height)
@@ -316,8 +253,24 @@ class Canvas:
         if isinstance(key, (int, tuple)):
             x, y = self._checkKey(key)
             return self.chars.get((x, y), None)
+
         elif isinstance(key, slice):
-            pass
+            kstart, kstop, kstep = self._normalizeKeySlice(key)
+            x1, y1 = kstart
+            x2, y2 = kstop
+
+            # create the new Canvas object
+            subWidth = math.ceil((x2 - x1) / float(kstep))
+            subHeight = math.ceil((y2 - y1) / float(kstep))
+
+            subcanvas = Canvas(width=subWidth, height=subHeight)
+
+            # copy the characters to the new Canvas object
+            for ix, xoffset in enumerate(range(0, subWidth, kstep)):
+                for iy, yoffset in enumerate(range(0, subHeight, kstep)):
+                    subcanvas[ix, iy] = self[x1 + xoffset, y1 + yoffset]
+            return subcanvas
+
         else:
             raise KeyError('key must be an int or tuple of two ints')
 
@@ -331,8 +284,18 @@ class Canvas:
             x, y = self._checkKey(key)
 
             self.chars[(x, y)] = value
+
         elif isinstance(key, slice):
-            pass
+            kstart, kstop, kstep = self._normalizeKeySlice(key)
+            x1, y1 = kstart
+            x2, y2 = kstop
+
+            # copy the value to every place in the slice
+            for ix in range(x1, x2, kstep):
+                for iy in range(y1, y2, kstep):
+                    self[ix, iy] = value
+            return
+
         else:
             raise KeyError('key must be an int or tuple of two ints')
 
@@ -341,16 +304,6 @@ class Canvas:
         """Returns an (x, y) tuple key for all integer/tuple key formats.
 
         >>> canvas = Canvas()
-        >>> canvas._checkKey(0)
-        (0, 0)
-        >>> canvas._checkKey(1)
-        (1, 0)
-        >>> canvas._checkKey(80)
-        (0, 1)
-        >>> canvas._checkKey(-1)
-        (79, 24)
-        >>> canvas._checkKey(-2)
-        (78, 24)
         >>> canvas._checkKey((0, 0))
         (0, 0)
         >>> canvas._checkKey((-1, 0))
@@ -360,50 +313,8 @@ class Canvas:
         >>> canvas._checkKey((-2, -2))
         (78, 23)
         """
-        if isinstance(key, int):
-            key = self._convertNegativeIndexToPositiveIndex(key)
-            key = self._convertPositiveIntegerIndexToKeyTuple(key)
-
         x, y = self._convertNegativeTupleKeyToPositiveTupleKey(key)
         return x, y
-
-
-    def _convertNegativeIndexToPositiveIndex(self, negKey):
-        """Returns a positive integer index given a negative integer index.
-
-        >>> canvas = Canvas()
-        >>> canvas._convertNegativeIndexToPositiveIndex(0)
-        0
-        >>> canvas._convertNegativeIndexToPositiveIndex(-1)
-        1999
-        >>> canvas._convertNegativeIndexToPositiveIndex(-2)
-        1998
-        """
-        if negKey < 0:
-            if -negKey > (self.width * self.height):
-                raise KeyError('key %r is out of range' % (negKey))
-
-            return (self.width * self.height) + negKey
-        else:
-            return negKey # return the original key
-
-
-    def _convertPositiveIntegerIndexToKeyTuple(self, intKey):
-        """Returns an (x, y) tuple from an integer index.
-
-        >>> canvas = Canvas()
-        >>> canvas._convertPositiveIntegerIndexToKeyTuple(0)
-        (0, 0)
-        >>> canvas._convertPositiveIntegerIndexToKeyTuple(80)
-        (0, 1)
-        >>> canvas._convertPositiveIntegerIndexToKeyTuple(85)
-        (5, 1)
-        """
-        if intKey < 0 or intKey >= (self.width * self.height):
-            raise KeyError('key %r is out of range' % (intKey))
-
-        return intKey % self.width, intKey // self.width
-
 
     def _convertNegativeTupleKeyToPositiveTupleKey(self, tupleKey):
         """Returns a tuple key with positive integers instead of negative
@@ -439,6 +350,53 @@ class Canvas:
             y = self.height + y
 
         return x, y
+
+
+    def _normalizeKeySlice(self, key):
+        if key.start is None:
+            kstart = (0, 0)
+        else:
+            kstart = key.start
+
+        if key.stop is None:
+            kstop = (self.width, self.height)
+        else:
+            kstop = key.stop
+
+        if key.step is None:
+            kstep = 1
+        else:
+            kstep = key.step
+
+        # x1 & y1 should be top-left, x2 & y2 should be bottom-right
+        # So swap these values if need be.
+        x1, y1 = kstart
+        x2, y2 = kstop
+        if x1 > x2:
+            x1, x2 = x2, x1
+        if y1 > y2:
+            y1, y2 = y2, y1
+
+        try:
+            x1, y1 = self._convertNegativeTupleKeyToPositiveTupleKey((x1, y1))
+
+            # Because x2 and y2 can go 1 past the end of the max index, the
+            # _convertNegativeTupleKeyToPositiveTupleKey() may raise an exception.
+            # So we need to pass dummy values so the exception isn't raised.
+            if x2 != self.width and x2 != -(self.width - 1) and \
+               y2 != self.height and y2 != -(self.height - 1):
+                x2, y2 = self._convertNegativeTupleKeyToPositiveTupleKey((x2, y2))
+            elif x2 != self.width and x2 != -(self.width - 1):
+                x2, _dummy = self._convertNegativeTupleKeyToPositiveTupleKey((x2, 0))
+            elif y2 != self.height and y2 != -(self.height - 1):
+                _dummy, y2 = self._convertNegativeTupleKeyToPositiveTupleKey((0, y2))
+            else:
+                pass # In this case, we don't need to adust x2 and y2 at all. So do nothing.
+        except KeyError:
+            raise KeyError('key must be a tuple of two ints')
+
+        return ((x1, y1), (x2, y2), kstep)
+
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -677,6 +635,7 @@ class Canvas:
 
 
 class CanvasDict(dict):
+    # TODO - a way to add generic data to the canvas (such as fg or bg)
     def __init__(self, width, height):
         pass # TODO
 
@@ -685,6 +644,7 @@ class CanvasDict(dict):
 
     def __setitem__(self, value):
         pass
+
 
 class Scene:
     def __init__(self, canvasesAndPositions):
