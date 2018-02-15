@@ -137,9 +137,12 @@ class TestBasics(unittest.TestCase):
 
 
     def test_getitem_setitem_slice(self):
-        canvas = pytextcanvas.Canvas()
 
-        # basic slice
+        # copy entire canvas
+        canvas = pytextcanvas.Canvas()
+        canvas[0, 0] = 'A'
+        canvas[1, 1] = 'B'
+        canvas[-1, -1] = 'Z'
         self.assertEqual(canvas[(0,0):(80, 25)], canvas)
         self.assertEqual(canvas[None:(80, 25)], canvas)
         self.assertEqual(canvas[:(80, 25)], canvas)
@@ -149,15 +152,22 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas[:], canvas)
         self.assertEqual(canvas[(80, 25):(0,0)], canvas)
 
-
         subcanvas = pytextcanvas.Canvas(10, 1)
+        canvas[0, 0] = 'A'
+        canvas[-1, -1] = 'Z'
         self.assertEqual(canvas[(0,0):(10, 1)], subcanvas)
         self.assertEqual(canvas[(10, 1):(0,0)], subcanvas)
 
         subcanvas = pytextcanvas.Canvas(10, 2)
+        canvas[0, 0] = 'A'
+        canvas[1, 1] = 'B'
+        canvas[-1, -1] = 'Z'
         self.assertEqual(canvas[(0,0):(10, 2)], subcanvas)
         self.assertEqual(canvas[(10, 2):(0,0)], subcanvas)
 
+        # test steps
+        canvas = pytextcanvas.Canvas(width=24, height=24)
+        subcanvas = canvas[0,0]
 
     def test_getitem_setitem_slice_errors(self):
         canvas = pytextcanvas.Canvas()

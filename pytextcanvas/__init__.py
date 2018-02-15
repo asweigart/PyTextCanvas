@@ -218,10 +218,13 @@ class Canvas:
         for y in range(self.height):
             row = []
             for x in range(self.width):
-                row.append(self.chars.get((x, y), ' '))
+                c = self.chars.get((x, y), ' ')
+                if c is None:
+                    row.append(' ')
+                else:
+                    row.append(c)
             result.append(''.join(row))
         return '\n'.join(result)
-
 
     def __len__(self):
         """Returns the length of this Canvas object, which is the length of
@@ -255,19 +258,17 @@ class Canvas:
             return self.chars.get((x, y), None)
 
         elif isinstance(key, slice):
-            kstart, kstop, kstep = self._normalizeKeySlice(key)
-            x1, y1 = kstart
-            x2, y2 = kstop
+            x1, y1, x2, y2, xStep, yStep = self._normalizeKeySlice(key)
 
             # create the new Canvas object
-            subWidth = math.ceil((x2 - x1) / float(kstep))
-            subHeight = math.ceil((y2 - y1) / float(kstep))
+            subWidth = math.ceil((x2 - x1) / float(xStep))
+            subHeight = math.ceil((y2 - y1) / float(yStep))
 
             subcanvas = Canvas(width=subWidth, height=subHeight)
 
             # copy the characters to the new Canvas object
-            for ix, xoffset in enumerate(range(0, subWidth, kstep)):
-                for iy, yoffset in enumerate(range(0, subHeight, kstep)):
+            for ix, xoffset in enumerate(range(0, subWidth, xStep)):
+                for iy, yoffset in enumerate(range(0, subHeight, yStep)):
                     subcanvas[ix, iy] = self[x1 + xoffset, y1 + yoffset]
             return subcanvas
 
@@ -286,13 +287,11 @@ class Canvas:
             self.chars[(x, y)] = value
 
         elif isinstance(key, slice):
-            kstart, kstop, kstep = self._normalizeKeySlice(key)
-            x1, y1 = kstart
-            x2, y2 = kstop
+            x1, y1, x2, y2, xStep, yStep = self._normalizeKeySlice(key)
 
             # copy the value to every place in the slice
-            for ix in range(x1, x2, kstep):
-                for iy in range(y1, y2, kstep):
+            for ix in range(x1, x2, xStep):
+                for iy in range(y1, y2, yStep):
                     self[ix, iy] = value
             return
 
@@ -353,6 +352,17 @@ class Canvas:
 
 
     def _normalizeKeySlice(self, key):
+        """Takes a slice object and returns a tuple of three tuples, each with
+        two integers, for the start, stop, and step aspects of the slice.
+
+        The start is guaranteed to be the top-left corner and the stop the
+        bottom-right corner of a rectangular area within the canvas. Negative
+        integers in the start and stop tuples are normalized to positive
+        integers.
+
+        >>> canvas = Canvas()
+
+        """
         if key.start is None:
             kstart = (0, 0)
         else:
@@ -364,7 +374,10 @@ class Canvas:
             kstop = key.stop
 
         if key.step is None:
-            kstep = 1
+            kstep = (1, 1)
+        elif isinstance(key.step, int):
+            # if only one int is specified, use it for both steps
+            kstep = (key.step, key.step)
         else:
             kstep = key.step
 
@@ -395,7 +408,7 @@ class Canvas:
         except KeyError:
             raise KeyError('key must be a tuple of two ints')
 
-        return ((x1, y1), (x2, y2), kstep)
+        return (x1, y1, x2, y2, kstep[0], kstep[1])
 
 
     def __eq__(self, other):
