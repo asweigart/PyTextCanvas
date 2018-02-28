@@ -7,21 +7,14 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import pytextcanvas
 
-runningOnPython2 = sys.version_info[0] == 2
-
-if runningOnPython2:
-    INPUT_FUNC = raw_input
-else:
-    INPUT_FUNC = input
-
 
 class TestBasics(unittest.TestCase):
     def test_ctor(self):
         canvas = pytextcanvas.Canvas()
-        self.assertEqual(canvas.width, 80)
-        self.assertEqual(canvas.height, 25)
+        self.assertEqual(canvas.width, pytextcanvas.DEFAULT_CANVAS_WIDTH)
+        self.assertEqual(canvas.height, pytextcanvas.DEFAULT_CANVAS_HEIGHT)
         self.assertEqual(canvas.name, '')
-        self.assertEqual(repr(canvas), "<'Canvas' object, width=80, height=25, name=''>")
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=%s, height=%s, name=''>" % (pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT))
 
         self.assertEqual(canvas.cursor, (0, 0))
         self.assertEqual(canvas.heading, pytextcanvas.EAST)
@@ -42,11 +35,17 @@ class TestBasics(unittest.TestCase):
         with self.assertRaises(ValueError):
             pytextcanvas.Canvas(width=-1)
 
+        with self.assertRaises(ValueError):
+            pytextcanvas.Canvas(width=0)
+
         with self.assertRaises(TypeError):
             pytextcanvas.Canvas(height='invalid')
 
         with self.assertRaises(ValueError):
             pytextcanvas.Canvas(height=-1)
+
+        with self.assertRaises(ValueError):
+            pytextcanvas.Canvas(height=0)
 
 
     def test_width_height(self):
@@ -86,7 +85,7 @@ class TestBasics(unittest.TestCase):
 
     def test_repr(self):
         canvas = pytextcanvas.Canvas()
-        self.assertEqual(repr(canvas), "<'Canvas' object, width=80, height=25, name=''>")
+        self.assertEqual(repr(canvas), "<'Canvas' object, width=%s, height=%s, name=''>" % (pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT))
 
         canvas = pytextcanvas.Canvas(10, 20, 'Alice')
         self.assertEqual(repr(canvas), "<'Canvas' object, width=10, height=20, name='Alice'>")
@@ -120,6 +119,11 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(canvas[79, 24], 'Z')
         self.assertEqual(canvas[78, 24], 'Y')
 
+    def test_setitem_slice(self):
+        pass # TODO
+
+    def test_getitem_slice(self):
+        pass # TODO returns a Canvas object
 
 
     def test_setitem_getitem_keyerror(self):
@@ -143,31 +147,30 @@ class TestBasics(unittest.TestCase):
         canvas[0, 0] = 'A'
         canvas[1, 1] = 'B'
         canvas[-1, -1] = 'Z'
-        self.assertEqual(canvas[(0,0):(80, 25)], canvas)
-        self.assertEqual(canvas[None:(80, 25)], canvas)
-        self.assertEqual(canvas[:(80, 25)], canvas)
+        self.assertEqual(canvas[(0,0):(pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT)], canvas)
+        self.assertEqual(canvas[None:(pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT)], canvas)
+        self.assertEqual(canvas[:(pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT)], canvas)
         self.assertEqual(canvas[(0, 0):None], canvas)
         self.assertEqual(canvas[(0, 0):], canvas)
         self.assertEqual(canvas[None:None], canvas)
         self.assertEqual(canvas[:], canvas)
-        self.assertEqual(canvas[(80, 25):(0,0)], canvas)
+        self.assertEqual(canvas[(pytextcanvas.DEFAULT_CANVAS_WIDTH, pytextcanvas.DEFAULT_CANVAS_HEIGHT):(0,0)], canvas)
 
         subcanvas = pytextcanvas.Canvas(10, 1)
-        canvas[0, 0] = 'A'
-        canvas[-1, -1] = 'Z'
+        subcanvas[0, 0] = 'A'
         self.assertEqual(canvas[(0,0):(10, 1)], subcanvas)
         self.assertEqual(canvas[(10, 1):(0,0)], subcanvas)
 
         subcanvas = pytextcanvas.Canvas(10, 2)
-        canvas[0, 0] = 'A'
-        canvas[1, 1] = 'B'
-        canvas[-1, -1] = 'Z'
+        subcanvas[0, 0] = 'A'
+        subcanvas[1, 1] = 'B'
         self.assertEqual(canvas[(0,0):(10, 2)], subcanvas)
         self.assertEqual(canvas[(10, 2):(0,0)], subcanvas)
 
         # test steps
         canvas = pytextcanvas.Canvas(width=24, height=24)
         subcanvas = canvas[0,0]
+        # TODO
 
     def test_getitem_setitem_slice_errors(self):
         canvas = pytextcanvas.Canvas()
@@ -208,7 +211,154 @@ class TestBasics(unittest.TestCase):
         pass
 
     def test_copy(self):
-        pass
+        canvas = pytextcanvas.Canvas(4, 4)
+        # LEFT OFF - uses slice to get new sub-Canvas object
+
+    def test_contains(self):
+        canvas = pytextcanvas.Canvas(4, 4)
+        for x in range(4):
+            for y in range(4):
+                self.assertFalse((x, y) in canvas)
+
+        canvas[1, 1] = 'x'
+        canvas[2, 2] = 'x'
+        self.assertTrue((1, 1) in canvas)
+        self.assertTrue((2, 2) in canvas)
+
+        del canvas[1, 1]
+        self.assertFalse((1, 1) in canvas)
+
+        canvas[2, 2] = None
+        self.assertFalse((2, 2) in canvas)
+
+
+    def test_len(self):
+
+        # TODO - tests len of string rep, not just width*height
+        canvas = pytextcanvas.Canvas(10, 10)
+        self.assertEqual(len(canvas), 109)
+
+        canvas = pytextcanvas.Canvas(10, 1)
+        self.assertEqual(len(canvas), 10)
+
+        canvas = pytextcanvas.Canvas(1, 10)
+        self.assertEqual(len(canvas), 19)
+
+        canvas = pytextcanvas.Canvas(1, 1)
+        self.assertEqual(len(canvas), 1)
+
+        canvas = pytextcanvas.Canvas(10, 2)
+        self.assertEqual(len(canvas), 21)
+
+        canvas = pytextcanvas.Canvas(2, 10)
+        self.assertEqual(len(canvas), 29)
+
+    def test_str_cache(self):
+        pass # TODO
+        # TODO - eventually, make it so that the strDirty bit is set only if an actual change is made.
+        # TODO - set it so that the cache can be enabled or disabled
+
+    def test_slices_in_key(self):
+        pass # TODO - tests _cehckForSlicesInKey()
+
+    def test_del(self):
+        canvas = pytextcanvas.Canvas(10, 10)
+
+        # Test that deleting an invalid key raises an exception
+        with self.assertRaises(KeyError):
+            del canvas['invalid']
+
+        # Test that deleting a nonexistent key doesn't raise an exception
+        del canvas[0, 0]
+        del canvas[(0, 0):(10, 10)]
+
+        # Test del operator
+        canvas[0, 0] = 'x'
+        del canvas[0, 0]
+        self.assertEqual(canvas[0, 0], None)
+
+        canvas[1, 0] = 'x'
+        del canvas[1, 0]
+        self.assertEqual(canvas[1, 0], None)
+
+        canvas[0, 1] = 'x'
+        del canvas[0, 1]
+        self.assertEqual(canvas[0, 1], None)
+
+        # Test setting to None
+        canvas[0, 0] = 'x'
+        canvas[0, 0] = None
+        self.assertEqual(canvas[0, 0], None)
+
+        canvas[1, 0] = 'x'
+        canvas[1, 0] = None
+        self.assertEqual(canvas[1, 0], None)
+
+        canvas[0, 1] = 'x'
+        canvas[0, 1] = None
+        self.assertEqual(canvas[0, 1], None)
+
+        # Can't delete cell by setting it to a blank string.
+        with self.assertRaises(ValueError):
+            canvas[0, 0] = ''
+
+        # Delete multiple cells with a slice:
+        canvas[(0, 0):(10, 10)] = 'x'
+        del canvas[(0, 0):(10, 10)]
+        for x in range(10):
+            for y in range(10):
+                self.assertEqual(canvas[x, y], None)
+
+        # Delete using negative indexes
+        # TODO
+
+        # Delete using negative slices
+        # TODO
+
+        # Delete using slices with steps
+        # TODO
+
+    def test_loads(self):
+        # Test basic usage
+        patternedCanvas = pytextcanvas.Canvas(3, 3)
+        patternedCanvas[0, 0] = '1'
+        patternedCanvas[1, 0] = '2'
+        patternedCanvas[2, 0] = '3'
+        patternedCanvas[0, 1] = '4'
+        patternedCanvas[1, 1] = '5'
+        patternedCanvas[2, 1] = '6'
+        patternedCanvas[0, 2] = '7'
+        patternedCanvas[1, 2] = '8'
+        patternedCanvas[2, 2] = '9'
+
+        canvas = pytextcanvas.Canvas(3, 3 , loads='123\n456\n789')
+        self.assertEqual(canvas, patternedCanvas)
+
+        canvas = pytextcanvas.Canvas(loads='123\n456\n789')
+        self.assertEqual(canvas, patternedCanvas)
+
+        canvas = pytextcanvas.Canvas(3, 3)
+        canvas.loads('123\n456\n789')
+        self.assertEqual(canvas, patternedCanvas)
+
+        # Test a too-large loads string
+        canvas = pytextcanvas.Canvas(3, 3 , loads='123xxx\n456xx\n789x')
+        self.assertEqual(canvas, patternedCanvas)
+
+        canvas = pytextcanvas.Canvas(3, 3 , loads='123\n456\n789\nxxx')
+        self.assertEqual(canvas, patternedCanvas)
+
+        canvas = pytextcanvas.Canvas(3, 3 , loads='123xxx\n456xx\n789x\nxxx')
+        self.assertEqual(canvas, patternedCanvas)
+
+        # Test a too-small loads string
+
+
+        # Test a sparse loads string
+        patternedCanvas[0, 2] = None
+        patternedCanvas[1, 2] = None
+        patternedCanvas[2, 2] = None
+
 
     def test_rotate(self):
         pass
@@ -229,7 +379,35 @@ class TestBasics(unittest.TestCase):
         pass
 
     def test_fill(self):
-        pass
+        blankCanvas = pytextcanvas.Canvas(4, 4)
+        canvas = pytextcanvas.Canvas(4, 4)
+        self.assertEqual(canvas, blankCanvas)
+
+        canvas[1, 1] = 'x'
+        canvas[2, 2] = 'x'
+        canvas.clear()
+        self.assertEqual(canvas, blankCanvas)
+
+        canvas.fill('x')
+        self.assertEqual(str(canvas), 'xxxx\nxxxx\nxxxx\nxxxx')
+
+        canvas.fill(' ')
+        self.assertEqual(str(canvas), '    \n    \n    \n    ')
+
+        canvas.fill(None)
+        self.assertEqual(str(canvas), '    \n    \n    \n    ')
+
+        # Test argument being casted to a string
+        canvas.fill(3)
+        self.assertEqual(str(canvas), '3333\n3333\n3333\n3333')
+
+        # Test "char" keyword.
+        canvas.fill(char='x')
+        self.assertEqual(str(canvas), 'xxxx\nxxxx\nxxxx\nxxxx')
+
+        # Test exceptions
+        with self.assertRaises(ValueError):
+            canvas.fill('xx')
 
     def test_floodfill(self):
         pass
@@ -322,7 +500,16 @@ class TestBasics(unittest.TestCase):
         pass
 
     def test_clear(self):
-        pass
+        blankCanvas = pytextcanvas.Canvas(4, 4)
+        canvas = pytextcanvas.Canvas(4, 4)
+        self.assertEqual(canvas, blankCanvas)
+
+        canvas[1, 1] = 'x'
+        canvas[2, 2] = 'x'
+        canvas.clear()
+        self.assertEqual(canvas, blankCanvas)
+
+
 
     def test_showCursor(self):
         pass
