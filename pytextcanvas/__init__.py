@@ -1,5 +1,21 @@
-# PyTextCanvas by Al Sweigart al@inventwithpython.com
+"""
+PyTextCanvas is a module for writing text and ascii art to a 2D canvas in Python.
 
+
+"""
+
+
+
+
+"""
+TODO
+
+Change properties to descriptors
+Add PyTextCanvasException class (maybe?)
+Add tkinter window
+Docstrings
+
+"""
 
 """
 TODO
@@ -13,21 +29,83 @@ TODO docs:
 - Each position is called a cell.
 - Setting a cell to ' ' makes it "blank" and opaque, setting it to None makes it transparent.
 
+Road Map of Features:
+- colors
+- arbitrary data associated with the cells
+- export as html
 """
 
 import doctest
 import math
 
-# Constants for headings
-NORTH = 90.0
-SOUTH = 270.0
-EAST = 0.0
-WEST = 180.0
+from ctypes import windll, create_string_buffer
 
+# Constants for Canvas size.
 DEFAULT_CANVAS_WIDTH = 80
 DEFAULT_CANVAS_HEIGHT = 25
 
-# from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Python
+
+class PyTextCanvasException(Exception):
+    """Base class for PyTextCanvas exceptions."""
+    pass
+
+
+class PyTextCanvasValueError(PyTextCanvasException):
+    """Value error class for PyTextCanvas."""
+    pass
+
+
+class PyTextCanvasTypeError(PyTextCanvasException):
+    """Type error class for PyTextCanvas."""
+    pass
+
+
+class PyTextCanvasAttributeError(PyTextCanvasException):
+    """Attribute error class for PyTextCanvas."""
+    pass
+
+
+class PyTextCanvasKeyError(PyTextCanvasException):
+    """Key error class for PyTextCanvas."""
+    pass
+
+
+def _checkForIntOrFloat(arg):
+    if not isinstance(arg, (int, float)):
+        raise PyTextCanvasTypeError('argument must be int or float, not %s' % (arg.__class__.__name__))
+
+
+def getTerminalSize():
+    if sys.platform() == 'win32':
+        # From http://code.activestate.com/recipes/440694-determine-size-of-console-window-on-windows/
+        h = windll.kernel32.GetStdHandle(-12)
+        csbi = create_string_buffer(22)
+        res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
+
+        if res:
+            import struct
+            (bufx, bufy, curx, cury, wattr,
+             left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
+            sizex = right - left + 1
+            sizey = bottom - top + 1
+        else:
+            sizex, sizey = 80, 25 # can't determine actual size - return default values
+        return sizex, sizey
+
+    # Linux:
+    # sizex, sizey = os.popen('stty size', 'r').read().split()
+    # return int(sizex), int(sizey)
+
+    #else:
+    #    raise PyTextCanvasException('Cannot determine the platform')
+
+def clearScreen():
+    if sys.platform() == 'win32':
+        os.system('cls')
+    else:
+        os.system('clear')
+
+
 def getLinePoints(x1, y1, x2, y2):
     """Returns a list of (x, y) tuples of every point on a line between
     (x1, y1) and (x2, y2). The x and y values inside the tuple are integers.
@@ -52,7 +130,10 @@ def getLinePoints(x1, y1, x2, y2):
     [(3, 3), (2, 2), (1, 1), (0, 0), (-1, -1), (-2, -2), (-3, -3)]
     """
 
-    # TODO - convert this to a generator/iterable
+    # from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Python
+
+    # Note: Handling the case where rev == True is why it's hard to implement
+    # this as an iterator.
 
     x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
     points = []
@@ -89,8 +170,7 @@ def getLinePoints(x1, y1, x2, y2):
 
 
 def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
-    '''
-    Returns True if the point of point_x, point_y is inside the area described.
+    """Returns True if the point of point_x, point_y is inside the area described.
 
     >>> isInside(0, 0, 0, 0, 1, 1)
     True
@@ -106,56 +186,52 @@ def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
     False
     >>> isInside(10, 10, 4, 4, 4, 4)
     False
-    '''
+    """
     return (area_left <= point_x < area_left + area_width) and (area_top <= point_y < area_top + area_height)
 
 
 class Canvas:
-    def __init__(self, width=None, height=None, name='', loads=None):
+    """Initialize a new Canvas, which represents a rectangular area of
+        text characters. The coordinates start in the upper left corner at
+        0, 0 and coordinates increase going right and down. Each position
+        in the canvas is called a cell and can contain a single text
+        character.
+
+        The size of the canvas is immutable. The size is specified in the
+        intializer through the width and height parameters or with a loads
+        string, which sets the size based on the maximum width and number
+        of lines in the loads string.
+        """
+    def __init__(self, width=None, height=None, loads=None):
+        """Initializes a new Canvas object."""
+
         if width is None and height is None and loads is not None:
             # self.width and self.height are set based on the size of the loads string
-            loadsLines = loads.split('\n')
+            loadsLines = loads.split('\n') # TODO - how to handle \r\n cases?
             self._width = max([len(line) for line in loadsLines])
             self._height = len(loadsLines)
         else:
             # self.width and self.height are set based on the width and height parameters
             if width is None:
-                width = DEFAULT_CANVAS_WIDTH
+                self._width = DEFAULT_CANVAS_WIDTH
+            else:
+                if not isinstance(width, int):
+                    raise PyTextCanvasTypeError('`width` arg must be an int, not %r' % (width.__class__.__name__))
+                if width < 1:
+                    raise PyTextCanvasValueError('`width` arg must be 1 or greater, not %r' % (width))
+                self._width = width
+
             if height is None:
-                height = DEFAULT_CANVAS_HEIGHT
+                self._height = DEFAULT_CANVAS_HEIGHT
+            else:
+                if not isinstance(height, int):
+                    raise PyTextCanvasTypeError('`height` arg must be an int, not %r' % (height.__class__.__name__))
+                if height < 1:
+                    raise PyTextCanvasValueError('`height` arg must be 1 or greater, not %r' % (height))
+                self._height = height
 
-            try:
-                self._width = int(width)
-            except (TypeError, ValueError):
-                raise TypeError('`width` arg must be a string, a bytes-like object or a number, not %r' % (width.__class__.__name__))
-
-            if self._width < 1:
-                raise ValueError('`width` arg must be 1 or greater, not %r' % (width))
-
-            try:
-                self._height = int(height)
-            except (TypeError, ValueError):
-                raise TypeError('`height` arg must be a string, a bytes-like object or a number, not %r' % (height.__class__.__name__))
-
-            if self._height < 1:
-                raise ValueError('`height` arg must be 1 or greater, not %r' % (height))
-
-        self.name = name
         self.chars = {}
-
-        self.cursor = (0, 0) # NOTE: Internally, the cursor is set to two floats. These can be viewed with `position`, but `cursor` always returns ints.
-        self.position = (0.0, 0.0) # NOTE: Unlike cursor, negative indexing can't be used for position.
-        self.heading = EAST
-
-        """ Heading:
-               90
-                |
-          180 --*-- 0
-                |
-               270
-        """
-        self.penIsDown = False
-        self.cursorChar = None
+        self._cursor = (0, 0) # The cursors are always set to integers.
 
         if loads is not None:
             # Pre-populate with a string.
@@ -172,7 +248,11 @@ class Canvas:
 
     @width.setter
     def width(self, value):
-        raise TypeError('%r size is immutable' % (self.__class__.__name__))
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
+
+    @width.deleter
+    def width(self):
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
 
 
     @property
@@ -181,19 +261,25 @@ class Canvas:
 
     @height.setter
     def height(self, value):
-        raise TypeError('%r size is immutable' % (self.__class__.__name__))
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
+
+    @height.deleter
+    def height(self):
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
 
 
     @property
-    def name(self):
-        return self._name
+    def size(self):
+        return self._width * self._height
 
-    @name.setter
-    def name(self, value):
-        if value is None:
-            self._name = None
-        else:
-            self._name = str(value)
+    @size.setter
+    def size(self, value):
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
+
+    @size.deleter
+    def size(self):
+        raise PyTextCanvasAttributeError('%r size is immutable' % (self.__class__.__name__))
+
 
 
     @property
@@ -202,7 +288,9 @@ class Canvas:
 
     @cursor.setter
     def cursor(self, value):
-        self._cursor = value
+        # TODO - validate arg
+        self.goto(value[0], value[1])
+
 
 
     @property
@@ -211,7 +299,7 @@ class Canvas:
 
     @cursorx.setter
     def cursorx(self, value):
-        self._cursor = (value, self.cursory)
+        self.setx(value)
 
 
     @property
@@ -220,19 +308,44 @@ class Canvas:
 
     @cursory.setter
     def cursory(self, value):
-        self._cursor = (self.cursorx, value)
+        self.sety(value)
 
 
+    def isOnCanvas(self, x, y):
+        """
+        Returns True if `x` and `y` are valid coordinates for a cell on this
+        canvas.
 
+        >>> canvas = Canvas(10, 10)
+        >>> canvas.isOnCanvas(0, 0)
+        True
+        >>> canvas.isOnCanvas(9, 9)
+        True
+        >>> canvas.isOnCanvas(0, 9)
+        True
+        >>> canvas.isOnCanvas(9, 0)
+        True
+        >>> canvas.isOnCanvas(10, 0)
+        False
+        >>> canvas.isOnCanvas(0, 10)
+        False
+        >>> canvas.isOnCanvas(10, 10)
+        False
+        >>> canvas.isOnCanvas(-1, 0)
+        False
+        >>> canvas.isOnCanvas(0, -1)
+        False
+        >>> canvas.isOnCanvas(-1, -1)
+        False
+        """
+        return 0 <= x < self.width and 0 <= y < self.height
 
 
     def __repr__(self):
         """Return a limited representation of this Canvas object. The width,
-        height, and name information is included, but not the foreground or
-        background color. A 7-digit hexadecimal fingerprint of the content
-        is given, based on the string representation of this Canvas object."""
-        return '<%r object, width=%r, height=%r, name=%r>' % \
-            (self.__class__.__name__, self._width, self._height, self._name)
+        and height information is included."""
+        return '<%r object, width=%r, height=%r>' % \
+            (self.__class__.__name__, self._width, self._height)
 
 
     def __str__(self):
@@ -308,7 +421,7 @@ class Canvas:
             return subcanvas
 
         else:
-            raise KeyError('key must be a tuple of two ints')
+            raise PyTextCanvasKeyError('key must be a tuple of two ints')
 
     def __setitem__(self, key, value):
         self._checkForSlicesInKey(key)
@@ -317,9 +430,9 @@ class Canvas:
             if value is not None:
                 value = str(value)
                 if len(value) == 0:
-                    raise ValueError('value must have a length of 1, set to None or use del to delete a cell, or set to " " to make the cell blank')
+                    raise PyTextCanvasValueError('value must have a length of 1, set to None or use del to delete a cell, or set to " " to make the cell blank')
                 elif len(value) != 1:
-                    raise ValueError('value must have a length of 1')
+                    raise PyTextCanvasValueError('value must have a length of 1')
 
             x, y = self._checkKey(key)
 
@@ -348,7 +461,7 @@ class Canvas:
             return
 
         else:
-            raise KeyError('key must be a tuple of two ints')
+            raise PyTextCanvasKeyError('key must be a tuple of two ints')
 
 
     def __delitem__(self, key):
@@ -373,7 +486,7 @@ class Canvas:
                         del self.chars[ix, iy]
 
         else:
-            raise KeyError('key must be a tuple of two ints')
+            raise PyTextCanvasKeyError('key must be a tuple of two ints')
 
 
     def _checkForSlicesInKey(self, key):
@@ -382,7 +495,7 @@ class Canvas:
         if isinstance(key, tuple):
             for i, v in enumerate(key):
                 if isinstance(v, slice):
-                    raise KeyError('Use parentheses when specifying slices, i.e. spam[(0, 0):(9, 9)] not spam[0, 0:9, 9].')
+                    raise PyTextCanvasKeyError('Use parentheses when specifying slices, i.e. spam[(0, 0):(9, 9)] not spam[0, 0:9, 9].')
 
     def _checkKey(self, key):
         """Returns an (x, y) tuple key for all integer/tuple key formats.
@@ -417,15 +530,15 @@ class Canvas:
         # check that tuple key is well formed: two ints as (x, y)
 
         if len(tupleKey) != 2 or not isinstance(tupleKey[0], int) or not isinstance(tupleKey[1], int):
-            raise KeyError('key must be a tuple of two ints')
+            raise PyTextCanvasKeyError('key must be a tuple of two ints')
 
         x, y = tupleKey # syntactic sugar
 
         # check x and y are in range
         if not (-self.width <= x < self.width):
-            raise KeyError('key\'s x (`%r`) is out of range' % (x))
+            raise PyTextCanvasKeyError('key\'s x (`%r`) is out of range' % (x))
         if not (-self.height <= y < self.height):
-            raise KeyError('key\'s y (`%r`) is out of range' % (y))
+            raise PyTextCanvasKeyError('key\'s y (`%r`) is out of range' % (y))
 
         # convert negative x & y to corresponding x & y
         if x < 0:
@@ -491,7 +604,7 @@ class Canvas:
             else:
                 pass # In this case, we don't need to adust x2 and y2 at all. So do nothing.
         except KeyError:
-            raise KeyError('key must be a tuple of two ints')
+            raise PyTextCanvasKeyError('key must be a tuple of two ints')
 
         return (x1, y1, x2, y2, kstep[0], kstep[1])
 
@@ -524,6 +637,7 @@ class Canvas:
            self.clear()
            return
 
+        # Get the appropriate range objects.
         if xOffset > 0:
             xRangeObj = range(self.width - 1 - xOffset, -1, -1)
         else:
@@ -532,15 +646,31 @@ class Canvas:
         if yOffset > 0:
             yRangeObj = range(self.height - 1 - yOffset, -1, -1)
         else:
-            yRangeObj = range(self.width - yOffset)
+            yRangeObj = range(self.height - yOffset)
 
         for x in xRangeObj:
             for y in yRangeObj:
-                print(x, y)
                 self[x + xOffset, y + yOffset] = self[x, y]
 
-                # LEFT OFF
+        # Clear the old, original cells.
+        # TODO - this can be made more efficient by not clearing the overlapping regions twice.
+        if xOffset >= 0:
+            for x in range(xOffset):
+                for y in range(self.height):
+                    del self[x, y]
+        else:
+            for x in range(self.width - 1 - xOffset, self.width):
+                for y in range(self.height):
+                    del self[x, y]
 
+        if yOffset >= 0:
+            for x in range(self.width):
+                for y in range(yOffset):
+                    del self[x, y]
+        else:
+            for x in range(self.width):
+                for y in range(self.height - 1 - yOffset):
+                    del self[x, y]
 
 
     def clear(self):
@@ -580,6 +710,28 @@ class Canvas:
             if y >= self.height:
                 break
 
+    def goto(self, x, y=None):
+        """Sets the curor to a specific xy point on the Canvas. `x` and `y`
+        are the x and y coordinates (which can be ints or floats), or `x`
+        is a tuple of two int/float values."""
+
+        # Note: This function manipulates _position and _cursor directly.
+        # These properties rely on goto() to for their functionality.
+        if isinstance(x, (int, float)):
+            _checkForIntOrFloat(y)
+
+        else:
+            try:
+                x, y = tuple(x)
+            except TypeError:
+                raise PyTextCanvasTypeError('argument must be iterable of two int or float values')
+            _checkForIntOrFloat(x)
+            _checkForIntOrFloat(y)
+
+        # TODO - handle
+
+        self._cursor = (int(x), int(y))
+
     def rotate(self):
         pass
 
@@ -601,7 +753,7 @@ class Canvas:
         if char is not None:
             char = str(char)
             if len(char) != 1:
-                raise ValueError('char must be a single character')
+                raise PyTextCanvasValueError('char must be a single character')
 
         for x in range(self.width):
             for y in range(self.height):
@@ -648,15 +800,132 @@ class Canvas:
 
 # TODO - should I use camelcase? I want to match the original Turtle module, but it uses, well, just lowercase.
 
+    def _convertNegativeWidthIndexToPositiveIndex(self, negIndex):
+        # check the type of negIndex
+        if not isinstance(negIndex, int):
+            raise PyTextCanvasTypeError('x index must be of type int, not %r' % (negIndex.__class__.__name__))
+
+        # check that negIndex is in range
+        if not (-self.width <= negIndex < self.width):
+            raise PyTextCanvasValueError('x index must be in between range of %s and %s' % (-self.width, self.width - 1))
+
+        if negIndex < 0:
+            return self.width + negIndex
+        else:
+            return negIndex # if negIndex is positive, just return it as is
 
 
-    def print(self):
-        pass
+    def _convertNegativeHeightIndexToPositiveIndex(self, negIndex):
+        # check the type of negIndex
+        if not isinstance(negIndex, int):
+            raise PyTextCanvasTypeError('y index must be of type int, not %r' % (negIndex.__class__.__name__))
+
+        # check that negIndex is in range
+        if not (-self.height <= negIndex < self.height):
+            raise PyTextCanvasValueError('y index must be in between range of %s and %s' % (-self.height, self.height - 1))
+
+        if negIndex < 0:
+            return self.height + negIndex
+        else:
+            return negIndex # if negIndex is positive, just return it as is
 
 
-    # Methods dervied from turtle module:
+
+# Constants for pen drawing.
+NORTH = 90.0
+SOUTH = 270.0
+EAST = 0.0
+WEST = 180.0
+DEFAULT_PEN_CHAR = '#'
+
+
+class Turtle(object):
+    """A LOGO-like turtle to draw on a canvas."""
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self._x = 0.0
+        self._y = 0.0
+        self.heading = EAST
+
+        """ Heading:
+               90
+                |
+          180 --*-- 0
+                |
+               270
+        """
+        self._isDown = False
+        self._pen = DEFAULT_PEN_CHAR
+
+    @property
+    def position(self):
+        return (self._x, self._y)
+
+    @position.setter
+    def position(self, value):
+        self.goto(value[0], value[1])
+
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, value):
+        self.goto(value, self.y)
+
+    @property
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, value):
+        self.goto(self._x, value)
+
+
+    @property
+    def isDown(self):
+        return self._isDown
+
+    @isDown.setter
+    def isDown(self, value):
+        if value:
+            self.penDown()
+        else:
+            self.penUp()
+
+    @property
+    def pen(self):
+        return self._pen
+
+    @pen.setter
+    def pen(self, value):
+        value = str(value)
+        if len(value) != 1:
+            raise PyTextCanvasValueError('pen must be set to a single character string')
+
+        self._pen = value
+
+    def __repr__(self):
+        """Returns a string representation of the Turtle object, including its coordiantes."""
+        return '<%r object, x=%r, y=%r, pen=%r>' % \
+            (self.__class__.__name__, self._x, self._y, self._pen)
+
+
+    def __eq__(self, other):
+        try:
+            return self._x == other[0] and self._y == other[1]
+        except:
+            pass # Nothing need to be done if other wasn't an iterable.
+
+        if not isinstance(other, self.__class__):
+            return False
+
+        return self._x == other._x and self._y == other._y
+
 
     def forward(self, distance):
+        # TODO - note that the position can move off of the edge of the canvas. Any drawing done here is lost.
         pass
 
     fd = forward
@@ -676,38 +945,140 @@ class Canvas:
 
     lt = left
 
+
     def goto(self, x, y=None):
         """Sets the curor to a specific xy point on the Canvas. `x` and `y`
         are the x and y coordinates (which can be ints or floats), or `x`
         is a tuple of two int/float values."""
+
+        # Note: This function manipulates _position and _cursor directly.
+        # These properties rely on goto() to for their functionality.
         if isinstance(x, (int, float)):
-            if not isinstance(y, (int, float)):
-                raise TypeError('`x` and `y` arguments must be int or float')
+            _checkForIntOrFloat(y)
+
         else:
             try:
                 x, y = tuple(x)
             except TypeError:
-                raise TypeError('argument must be iterable of two int or float values')
-            if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
-                raise TypeError('`x` and `y` arguments must be int or float')
+                raise PyTextCanvasTypeError('argument must be iterable of two int or float values')
+            _checkForIntOrFloat(x)
+            _checkForIntOrFloat(y)
 
-        self.position = (x, y)
+        # TODO - handle
+
+        self._position = (x, y)
+
 
     setpost = setposition = goto
 
     def setx(self, x):
-        pass
+        self.goto(x, self.position[1])
 
     def sety(self, y):
-        pass
+        self.goto(self.position[0], y)
 
     def setheading(self, toAngle):
         pass
 
     seth = setheading
 
+
+    def north(self, distance=1.0):
+        """Move the turtle cursor north (upwards).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._y -= distance
+    n = north
+
+    def south(self, distance=1.0):
+        """Move the turtle cursor south (downwards).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._y += distance
+    s = south
+
+    def east(self, distance=1.0):
+        """Move the turtle cursor east (right).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x += distance
+    e = east
+
+    def west(self, distance=1.0):
+        """Move the turtle cursor west (left).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x -= distance
+    w = west
+
+    def northeast(self, distance=1.0):
+        """Move the turtle cursor northeast (up and right).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x += distance
+        self._y -= distance
+    ne = northeast
+
+    def northwest(self, distance=1.0):
+        """Move the turtle cursor northwest (up and left).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x -= distance
+        self._y -= distance
+    nw = northwest
+
+    def southeast(self, distance=1.0):
+        """Move the turtle cursor southeast (down and right).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x += distance
+        self._y += distance
+    se = southeast
+
+    def southwest(self, distance=1.0):
+        """Move the turtle cursor southwest (down and left).
+
+        Args:
+            distance: An int or float for how far to move the cursor. This
+            number can also be negative.
+        """
+        _checkForIntOrFloat(distance)
+        self._x -= distance
+        self._y += distance
+    sw = southwest
+
+
     def home(self):
-        pass
+        self._x = 0.0
+        self._y = 0.0
 
     # NOTE: No undo in PyTextCanvas.
 
@@ -724,17 +1095,20 @@ class Canvas:
         pass
 
     def penDown(self):
-        pass
+        self._isDown = True
+        x, y = self.cursor
+        if self.isOnCanvas(x, y):
+            self[x, y] = self.pen
 
     pd = down = penDown
 
     def penUp(self):
-        pass
+        self._isDown = False
 
     pu = up = penUp
 
     def penColor(self):
-        pass
+        pass # TODO - rename to just "color"?
 
     def fillColor(self):
         pass
@@ -767,35 +1141,6 @@ class Canvas:
     hc = hideCursor
 
 
-    def _convertNegativeWidthIndexToPositiveIndex(self, negIndex):
-        # check the type of negIndex
-        if not isinstance(negIndex, int):
-            raise TypeError('x index must be of type int, not %r' % (negIndex.__class__.__name__))
-
-        # check that negIndex is in range
-        if not (-self.width <= negIndex < self.width):
-            raise ValueError('x index must be in between range of %s and %s' % (-self.width, self.width - 1))
-
-        if negIndex < 0:
-            return self.width + negIndex
-        else:
-            return negIndex # if negIndex is positive, just return it as is
-
-
-    def _convertNegativeHeightIndexToPositiveIndex(self, negIndex):
-        # check the type of negIndex
-        if not isinstance(negIndex, int):
-            raise TypeError('y index must be of type int, not %r' % (negIndex.__class__.__name__))
-
-        # check that negIndex is in range
-        if not (-self.height <= negIndex < self.height):
-            raise ValueError('y index must be in between range of %s and %s' % (-self.height, self.height - 1))
-
-        if negIndex < 0:
-            return self.height + negIndex
-        else:
-            return negIndex # if negIndex is positive, just return it as is
-
 
 class CanvasDict(dict):
     # TODO - a way to add generic data to the canvas (such as fg or bg)
@@ -819,14 +1164,14 @@ class Scene:
             for i, canvasAndPosition in enumerate(self.canvasesAndPositions):
                 canvas, top, left = canvasAndPosition
                 if not isinstance(canvas, Canvas):
-                    raise TypeError('item at index %s does not have Canvas object' % (i))
+                    raise PyTextCanvasTypeError('item at index %s does not have Canvas object' % (i))
                 if not isinstance(top, int):
-                    raise TypeError('item at index %s does not have an int top value' % (i))
+                    raise PyTextCanvasTypeError('item at index %s does not have an int top value' % (i))
                 if not isinstance(left, int):
-                    raise TypeError('item at index %s does not have an int left value' % (i))
+                    raise PyTextCanvasTypeError('item at index %s does not have an int left value' % (i))
                 self.canvasesAndPositions.appendCanvas(*(canvas, top, left))
         except TypeError:
-            raise TypeError('%r object is not iterable' % (canvasesAndPositions.__class__.__name__))
+            raise PyTextCanvasTypeError('%r object is not iterable' % (canvasesAndPositions.__class__.__name__))
 
     def __len__(self):
         if self.canvasesAndPositions == []:
