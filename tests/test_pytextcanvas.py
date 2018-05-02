@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 
 import pytest
-import unittest
 import sys
 import os
 
@@ -10,7 +9,7 @@ import pytextcanvas
 
 
 def test_constants():
-    # Test values
+    # Test values of constants
     assert pytextcanvas.NORTH == 90.0
     assert pytextcanvas.SOUTH == 270.0
     assert pytextcanvas.EAST == 0.0
@@ -30,6 +29,7 @@ def test_constants():
 
 
 def test_ctor():
+    # Test default width and height settings.
     canvas = pytextcanvas.Canvas()
     assert canvas.width, pytextcanvas.DEFAULT_CANVAS_WIDTH
     assert canvas.height, pytextcanvas.DEFAULT_CANVAS_HEIGHT
@@ -37,53 +37,46 @@ def test_ctor():
 
     assert canvas.cursor == (0, 0)
 
+    # Test positional arguments.
     for canvas in (pytextcanvas.Canvas(width=20, height=10),
                    pytextcanvas.Canvas(20, 10, 'Alice')):
         assert canvas.width == 20
         assert canvas.height == 10
-        assert canvas.size == 200
+        assert canvas.area == 200
         assert repr(canvas) == "<'Canvas' object, width=20, height=10>"
 
-
-    with pytest.raises(pytextcanvas.PyTextCanvasTypeError):
+    # Test invalid settings for ctor width and height.
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        pytextcanvas.Canvas(width=3.0)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         pytextcanvas.Canvas(width='invalid')
-
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        pytextcanvas.Canvas(width=-1)
-
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         pytextcanvas.Canvas(width=0)
-
-    with pytest.raises(pytextcanvas.PyTextCanvasTypeError):
-        pytextcanvas.Canvas(height='invalid')
-
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        pytextcanvas.Canvas(height=-1)
-
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        pytextcanvas.Canvas(height=0)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        pytextcanvas.Canvas(width=-1)
 
 
 def test_width_height():
-    for attrName in ('width', 'height'):
-        canvas = pytextcanvas.Canvas(width=4)
-        assert canvas.width ==  4
+    # Make sure the ctor sets the width and height correctly.
+    canvas = pytextcanvas.Canvas(width=4)
+    assert canvas.width ==  4
 
-        canvas = pytextcanvas.Canvas(height=4)
-        assert canvas.height ==  4
+    canvas = pytextcanvas.Canvas(height=4)
+    assert canvas.height ==  4
 
-        # Test invalid settings
-        with pytest.raises(pytextcanvas.PyTextCanvasTypeError):
-            pytextcanvas.Canvas(width=3.0)
-        with pytest.raises(pytextcanvas.PyTextCanvasTypeError):
-            pytextcanvas.Canvas(width='invalid')
-        with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-            pytextcanvas.Canvas(width=0)
-        with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-            pytextcanvas.Canvas(width=-1)
-        with pytest.raises(pytextcanvas.PyTextCanvasAttributeError):
-            canvas = pytextcanvas.Canvas()
-            canvas.__setattr__(attrName, 10)
+    # Make sure the width, height, and area are immutable.
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.width = 10
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.width
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.height = 10
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.height
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.area = 10
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.area
 
 
 def test_repr():
@@ -133,10 +126,10 @@ def test_setitem_getitem_keyerror():
                 (-9999, -9999), (-9999, 0), (0, -9999),
                 (0.0, 0), (0, 0.0), (0.0, 0.0)):
 
-        with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+        with pytest.raises(pytextcanvas.PyTextCanvasException):
             canvas[key] = 'X'
 
-        with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+        with pytest.raises(pytextcanvas.PyTextCanvasException):
             canvas[key]
 
 
@@ -175,16 +168,16 @@ def test_getitem_setitem_slice():
 def test_getitem_setitem_slice_errors():
     canvas = pytextcanvas.Canvas()
 
-    with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas[(0.0, 0):]
 
-    with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas[(0, 0.0):]
 
-    with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas[:(0.0, 0)]
 
-    with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas[:(0, 0.0)]
 
 
@@ -219,21 +212,9 @@ def test_copy():
 
 
 def test_contains():
-    canvas = pytextcanvas.Canvas(4, 4)
-    for x in range(4):
-        for y in range(4):
-            assert (x, y) not in canvas
-
-    canvas[1, 1] = 'x'
-    canvas[2, 2] = 'x'
-    assert (1, 1) in canvas
-    assert (2, 2) in canvas
-
-    del canvas[1, 1]
-    assert (1, 1) not in canvas
-
-    canvas[2, 2] = None
-    assert (2, 2) not in canvas
+    canvas = pytextcanvas.Canvas(loads='hello\n world')
+    assert 'hello' in canvas
+    assert 'world' in canvas
 
 
 def test_len():
@@ -271,7 +252,7 @@ def test_del():
     canvas = pytextcanvas.Canvas(10, 10)
 
     # Test that deleting an invalid key raises an exception
-    with pytest.raises(pytextcanvas.PyTextCanvasKeyError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         del canvas['invalid']
 
     # Test that deleting a nonexistent key doesn't raise an exception
@@ -305,7 +286,7 @@ def test_del():
     assert canvas[0, 1] is None
 
     # Can't delete cell by setting it to a blank string.
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas[0, 0] = ''
 
     # Delete multiple cells with a slice:
@@ -444,7 +425,7 @@ def test_fill():
     assert str(canvas) == 'xxxx\nxxxx\nxxxx\nxxxx'
 
     # Test exceptions
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.fill('xx')
 
 def test_floodfill():
@@ -603,96 +584,103 @@ def test_compass_functions():
     turtle.nw()
     assert turtle.position == (0.0, 0.0)
 
+
 def test_penDown_penUp():
-    canvas1 = pytextcanvas.Canvas()
-    canvas2 = pytextcanvas.Canvas()
-    canvas3 = pytextcanvas.Canvas()
     blankCanvas = pytextcanvas.Canvas()
+    canvas = pytextcanvas.Canvas()
+    turtle = pytextcanvas.Turtle(canvas)
 
-    for canvas, downFunc, upFunc in ((canvas1, canvas1.penDown, canvas1.penUp),
-                                     (canvas2, canvas2.down, canvas2.up),
-                                     (canvas3, canvas3.pd, canvas3.pu)):
-        assert canvas == blankCanvas
+    assert turtle.pd == turtle.down == turtle.penDown
+    assert turtle.pu == turtle.up == turtle.penUp
 
-        downFunc()
-        assert canvas.isDown
-        assert canvas != blankCanvas # Putting the pen down leaves a mark.
-        assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
-        upFunc()
-        assert not canvas.isDown
-        assert canvas != blankCanvas # Mark remains after lifting pen up.
-        assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
+    turtle.penDown()
+    assert turtle.isDown
+    assert canvas != blankCanvas # Putting the pen down leaves a mark.
+    assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
+    turtle.penUp()
+    assert not turtle.isDown
+    assert canvas != blankCanvas # Mark remains after lifting pen up.
+    assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
 
-        # Test it again, just to make sure that putting the pen down and up again doesn't somehow clear the canvas.
-        downFunc()
-        assert canvas.isDown
-        assert canvas != blankCanvas # Putting the pen down leaves a mark.
-        assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
-        upFunc()
-        assert not canvas.isDown
-        assert canvas != blankCanvas # Mark remains after lifting pen up.
-        assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
+    # Test it again, just to make sure that putting the pen down and up again doesn't somehow clear the canvas.
+    turtle.penDown()
+    assert turtle.isDown
+    assert canvas != blankCanvas # Putting the pen down leaves a mark.
+    assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
+    turtle.penUp()
+    assert not turtle.isDown
+    assert canvas != blankCanvas # Mark remains after lifting pen up.
+    assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
 
-        # Change the pen character, then see if the mark changes
-        canvas.pen = '+'
-        # TODO - mark on canvas should not change
-        downFunc()
-        assert canvas.isDown
-        assert canvas != blankCanvas # Putting the pen down leaves a mark.
-        assert canvas[0, 0] == '+'
-        upFunc()
-        assert not canvas.isDown
-        assert canvas != blankCanvas # Mark remains after lifting pen up.
-        assert canvas[0, 0] == '+'
+    # Change the pen character, then see if the mark changes
+    canvas.penChar = '+'
+    assert canvas.penChar == '+'
+    assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR # mark on canvas shouldn't change because pen is currently up
+    turtle.penDown()
+    assert turtle.isDown
+    assert canvas != blankCanvas # Putting the pen down leaves a mark.
+    assert canvas[0, 0] == '+'
+    turtle.penUp()
+    assert not turtle.isDown
+    assert canvas != blankCanvas # Mark remains after lifting pen up.
+    assert canvas[0, 0] == '+'
 
-        downFunc()
-        canvas.pen = 'x'
-        # TODO - mark on canvas should change since pen is down
+    turtle.penDown()
+    canvas.penChar = 'x'
+    # TODO - mark on canvas should change since pen is down
+
 
 def test_setting_pen_char():
     canvas = pytextcanvas.Canvas()
-    assert canvas.pen == pytextcanvas.DEFAULT_PEN_CHAR
+    turtle = pytextcanvas.Turtle(canvas)
 
-    canvas.pen = '+'
-    assert canvas.pen == '+'
+    assert turtle.penChar == pytextcanvas.DEFAULT_PEN_CHAR
 
-    canvas.pen = '#'
-    assert canvas.pen == '#'
+    turtle.penChar = '+'
+    assert turtle.penChar == '+'
+
+    turtle.penChar = '#'
+    assert turtle.penChar == '#'
 
     # Test setting pen to an invalid value
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        canvas.pen = None
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        turtle.penChar = None
 
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        canvas.pen = 'xx'
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        turtle.penChar = 'xx'
 
-    with pytest.raises(pytextcanvas.PyTextCanvasValueError):
-        canvas.pen = ''
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        turtle.penChar = ''
 
 
 
 def test_home():
     canvas = pytextcanvas.Canvas()
-    turtle = pytextcanvas.Turtle()
+    turtle = pytextcanvas.Turtle(canvas)
+
 
 def test_penColor():
     pass
 
+
 def test_fillColor():
     pass
+
 
 def test_reset():
     pass
 
+
 def test_showCursor():
     pass
+
 
 def test_hideCursor():
     pass
 
+
 def test_isOnCanvas():
     canvas = pytextcanvas.Canvas(10, 10)
-
     assert canvas.isOnCanvas(0, 0)
     assert canvas.isOnCanvas(9, 9)
     assert canvas.isOnCanvas(0, 9)
@@ -703,6 +691,132 @@ def test_isOnCanvas():
     assert not canvas.isOnCanvas(-1, 0)
     assert not canvas.isOnCanvas(0, -1)
     assert not canvas.isOnCanvas(-1, -1)
+
+
+def test_isInside():
+    assert pytextcanvas.isInside(0, 0, 0, 0, 10, 10)
+    assert pytextcanvas.isInside(5, 5, 4, 4, 4, 4)
+    assert not pytextcanvas.isInside(10, 0, 0, 0, 10, 10)
+    assert not pytextcanvas.isInside(0, 1, 0, 0, 1, 1)
+    assert not pytextcanvas.isInside(1, 1, 0, 0, 1, 1)
+    assert not pytextcanvas.isInside(8, 8, 4, 4, 4, 4)
+    assert not pytextcanvas.isInside(10, 10, 4, 4, 4, 4)
+
+
+def test__checkForIntOrFloat():
+    # int and float values don't raise an exception:
+    pytextcanvas._checkForIntOrFloat(1)
+    pytextcanvas._checkForIntOrFloat(1.0)
+
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        pytextcanvas._checkForIntOrFloat('invalid')
+
+
+def test_getTerminalSize():
+    # This test can't reliably run, since the terminal size will be different
+    # depending on the terminal that runs these tests. Let's just make sure
+    # it runs without raising an exception.
+    pytextcanvas.getTerminalSize()
+
+
+def test_clearScreen():
+    # This test can't reliably run, since the terminal size will be different
+    # depending on the terminal that runs these tests. Let's just make sure
+    # it runs without raising an exception.
+    pytextcanvas.clearScreen()
+
+
+def test_getLinePoints():
+    assert list(pytextcanvas.getLinePoints(0, 0, 5, 5))  == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]
+    assert list(pytextcanvas.getLinePoints(0, 0, 5, 15)) == [(0, 0), (0, 1), (1, 2), (1, 3), (1, 4), (2, 5), (2, 6), (2, 7), (3, 8), (3, 9), (3, 10), (4, 11), (4, 12), (4, 13), (5, 14), (5, 15)]
+    assert list(pytextcanvas.getLinePoints(5, 5, 0, 0))  == [(5, 5), (4, 4), (3, 3), (2, 2), (1, 1), (0, 0)]
+    assert list(pytextcanvas.getLinePoints(5, 15, 0, 0)) == [(5, 15), (5, 14), (4, 13), (4, 12), (4, 11), (3, 10), (3, 9), (3, 8), (2, 7), (2, 6), (2, 5), (1, 4), (1, 3), (1, 2), (0, 1), (0, 0)]
+    assert list(pytextcanvas.getLinePoints(0, 0, 5, -15)) == [(0, 0), (0, -1), (1, -2), (1, -3), (1, -4), (2, -5), (2, -6), (2, -7), (3, -8), (3, -9), (3, -10), (4, -11), (4, -12), (4, -13), (5, -14), (5, -15)]
+    assert list(pytextcanvas.getLinePoints(5, -15, 0, 0)) == [(5, -15), (5, -14), (4, -13), (4, -12), (4, -11), (3, -10), (3, -9), (3, -8), (2, -7), (2, -6), (2, -5), (1, -4), (1, -3), (1, -2), (0, -1), (0, 0)]
+
+
+def test_cursor():
+    canvas = pytextcanvas.Canvas(10, 10)
+
+    # Test reading the cursor value.
+    assert canvas.cursor == (0, 0)
+    assert canvas.cursorx == 0
+    assert canvas.cursory == 0
+
+    # Test writing the cursor value.
+    canvas.cursor = (3, 4)
+    assert canvas.cursorx == 3
+    assert canvas.cursory == 4
+    canvas.cursorx = 5
+    assert canvas.cursorx == 5
+    canvas.cursory = 6
+    assert canvas.cursory == 6
+
+    # Test negative indexes for the cursor.
+    canvas.cursor = (1, -1)
+    assert canvas.cursor == (1, 9)
+
+    canvas.cursor = (-2, 1)
+    assert canvas.cursor == (8, 1)
+
+    canvas.cursorx = -3
+    assert canvas.cursor == (7, 1)
+
+    canvas.cursory = -4
+    assert canvas.cursor == (7, 6)
+
+
+    # Test to make sure invalid values raise an exception.
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = 'invalid'
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (0,)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (0, 1, 2)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = []
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (1.1, 1)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (1, 1.1)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.cursor
+
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursorx = 'invalid'
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursorx = 1.1
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.cursorx
+
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursory = 'invalid'
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursory = 1.1
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.cursory
+
+    # Test to make sure coordinates are within the canvas.
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (1, 9999)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (9999, 1)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (1, canvas.height)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursor = (canvas.width, 1)
+
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursory = 9999
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursory = canvas.height
+
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursorx = 9999
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.cursorx = canvas.width
+
+
 
 
 if __name__ == '__main__':

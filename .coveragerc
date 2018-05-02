@@ -1,5 +1,11 @@
 # .coveragerc to control coverage.py
-# To run coverage tests, run `coverage run` then `coverage html`
+
+
+
+# To run coverage tests, run `coverage run tests\test_pytextcanvas.py` then `coverage html`, report will be in  htmlconv\index.html
+
+
+
 [run]
 
 
