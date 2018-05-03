@@ -613,8 +613,8 @@ def test_penDown_penUp():
     assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR
 
     # Change the pen character, then see if the mark changes
-    canvas.penChar = '+'
-    assert canvas.penChar == '+'
+    turtle.penChar = '+'
+    assert turtle.penChar == '+'
     assert canvas[0, 0] == pytextcanvas.DEFAULT_PEN_CHAR # mark on canvas shouldn't change because pen is currently up
     turtle.penDown()
     assert turtle.isDown
@@ -626,9 +626,18 @@ def test_penDown_penUp():
     assert canvas[0, 0] == '+'
 
     turtle.penDown()
-    canvas.penChar = 'x'
+    turtle.penChar = 'x'
     # TODO - mark on canvas should change since pen is down
 
+
+def test_accidentally_setting_penChar_on_canvas_objects():
+    canvas = pytextcanvas.Canvas(10, 10)
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.penChar
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        canvas.penChar = 'A'
+    with pytest.raises(pytextcanvas.PyTextCanvasException):
+        del canvas.penChar
 
 def test_setting_pen_char():
     canvas = pytextcanvas.Canvas()
@@ -724,15 +733,6 @@ def test_clearScreen():
     # depending on the terminal that runs these tests. Let's just make sure
     # it runs without raising an exception.
     pytextcanvas.clearScreen()
-
-
-def test_getLinePoints():
-    assert list(pytextcanvas.getLinePoints(0, 0, 5, 5))  == [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]
-    assert list(pytextcanvas.getLinePoints(0, 0, 5, 15)) == [(0, 0), (0, 1), (1, 2), (1, 3), (1, 4), (2, 5), (2, 6), (2, 7), (3, 8), (3, 9), (3, 10), (4, 11), (4, 12), (4, 13), (5, 14), (5, 15)]
-    assert list(pytextcanvas.getLinePoints(5, 5, 0, 0))  == [(5, 5), (4, 4), (3, 3), (2, 2), (1, 1), (0, 0)]
-    assert list(pytextcanvas.getLinePoints(5, 15, 0, 0)) == [(5, 15), (5, 14), (4, 13), (4, 12), (4, 11), (3, 10), (3, 9), (3, 8), (2, 7), (2, 6), (2, 5), (1, 4), (1, 3), (1, 2), (0, 1), (0, 0)]
-    assert list(pytextcanvas.getLinePoints(0, 0, 5, -15)) == [(0, 0), (0, -1), (1, -2), (1, -3), (1, -4), (2, -5), (2, -6), (2, -7), (3, -8), (3, -9), (3, -10), (4, -11), (4, -12), (4, -13), (5, -14), (5, -15)]
-    assert list(pytextcanvas.getLinePoints(5, -15, 0, 0)) == [(5, -15), (5, -14), (4, -13), (4, -12), (4, -11), (3, -10), (3, -9), (3, -8), (2, -7), (2, -6), (2, -5), (1, -4), (1, -3), (1, -2), (0, -1), (0, 0)]
 
 
 def test_cursor():

@@ -40,6 +40,8 @@ import math
 import os
 import sys
 
+import pybresenham
+
 from ctypes import windll, create_string_buffer
 
 # Constants for Canvas size.
@@ -129,90 +131,6 @@ def clearScreen():
         os.system('clear')
 
 
-def getLinePoints(x1, y1, x2, y2):
-    """Returns a list of (x, y) tuples of every point on a line between
-    (x1, y1) and (x2, y2). The x and y values inside the tuple are integers.
-
-    Line generated with the Bresenham algorithm.
-
-    Args:
-      x1 (int, float): The x coordinate of the line's start point.
-      y1 (int, float): The y coordinate of the line's start point.
-      x2 (int, float): The x coordinate of the line's end point.
-      y2 (int, float): The y coordiante of the line's end point.
-
-    Returns:
-      [(x1, y1), (x2, y2), (x3, y3), ...]
-
-    Example:
-    >>> list(getLinePoints(0, 0, 6, 6))
-    [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6)]
-    >>> list(getLinePoints(0, 0, 3, 6))
-    [(0, 0), (0, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6)]
-    >>> list(getLinePoints(3, 3, -3, -3))
-    [(3, 3), (2, 2), (1, 1), (0, 0), (-1, -1), (-2, -2), (-3, -3)]
-    """
-
-    # From http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Python
-
-    # Note: Handling the case where rev == True is why it's hard to implement
-    # this as an iterator.
-
-    _checkForIntOrFloat(x1)
-    _checkForIntOrFloat(y1)
-    _checkForIntOrFloat(x2)
-    _checkForIntOrFloat(y2)
-    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-
-    isSteep = abs(y2-y1) > abs(x2-x1)
-    if isSteep:
-        x1, y1 = y1, x1
-        x2, y2 = y2, x2
-    isReversed = x1 > x2
-
-    if isReversed:
-        x1, x2 = x2, x1
-        y1, y2 = y2, y1
-
-        deltax = x2 - x1
-        deltay = abs(y2-y1)
-        error = int(deltax / 2)
-        y = y2
-        ystep = None
-        if y1 < y2:
-            ystep = 1
-        else:
-            ystep = -1
-        for x in range(x2, x1 - 1, -1):
-            if isSteep:
-                yield (y, x)
-            else:
-                yield (x, y)
-            error -= deltay
-            if error <= 0:
-                y -= ystep
-                error += deltax
-    else:
-        deltax = x2 - x1
-        deltay = abs(y2-y1)
-        error = int(deltax / 2)
-        y = y1
-        ystep = None
-        if y1 < y2:
-            ystep = 1
-        else:
-            ystep = -1
-        for x in range(x1, x2 + 1):
-            if isSteep:
-                yield (y, x)
-            else:
-                yield (x, y)
-            error -= deltay
-            if error < 0:
-                y += ystep
-                error += deltax
-
-
 def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
     """Returns True if the point of point_x, point_y is inside the area
     described, inclusive of area_left and area_top.
@@ -276,6 +194,13 @@ class Canvas:
         # represents a "transparent" character when canvases are layered on
         # top of each other, as opposed to a space ' ' which will cover up
         # that cell with a blank space.
+
+        # =====================================
+        # ============= IMPORTANT =============
+        # =====================================
+        # If you directly modify _chars, be sure to set _strDirty to True, otherwise
+        # the cached version of the string will be returned and any changes won't
+        # be reflected.
         self._chars = [[None] * self._height for i in range(self._width)]
 
         # The foreground & background of each cell in the canvas. These are
@@ -383,6 +308,20 @@ class Canvas:
     @cursory.deleter
     def cursory(self):
         raise PyTextCanvasException('%r cursor is immutable' % (self.__class__.__name__))
+
+
+
+    @property
+    def penChar(self):
+        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
+
+    @penChar.setter
+    def penChar(self, value):
+        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
+
+    @penChar.deleter
+    def penChar(self):
+        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
 
 
     def isOnCanvas(self, x, y):
@@ -994,6 +933,10 @@ class Turtle(object):
         if not isinstance(value, str) or len(value) != 1:
             raise PyTextCanvasException('penChar must be set to a single character string')
         self._penChar = value
+        if self.isDown and self.canvas.isOnCanvas(self.x, self.y):
+            self.canvas._strDirty = True
+            self.canvas._chars[int(self._x)][int(self._y)] = self._penChar
+
 
     @penChar.deleter
     def penChar(self):
@@ -1191,6 +1134,7 @@ class Turtle(object):
     def penDown(self):
         self._isDown = True
         if self.canvas.isOnCanvas(self.x, self.y):
+            self.canvas._strDirty = True
             self.canvas._chars[int(self.x)][int(self.y)] = self._penChar
 
     pd = down = penDown
