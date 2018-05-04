@@ -24,7 +24,6 @@ Design considerations:
 - Canvas must track steps for undo/redo
 - Canvas must track the written areas for clipping. This won't include use of fill.
 
-
 TODO docs:
 - Each position is called a cell.
 - Setting a cell to ' ' makes it "blank" and opaque, setting it to None makes it transparent.
@@ -35,14 +34,15 @@ Road Map of Features:
 - export as html
 """
 
+# TODO - add a mode where drawing ooutside the canvas is a no-op instead of raising an exception.
+
+
 import doctest
 import math
 import os
 import sys
 
-import pybresenham
-
-from ctypes import windll, create_string_buffer
+#import pybresenham
 
 # Constants for Canvas size.
 DEFAULT_CANVAS_WIDTH = 80
@@ -100,11 +100,12 @@ def _checkForIntOrFloat(arg):
 
 
 def getTerminalSize():
+    import ctypes # getTerminalSize() will most likely rarely be used, so don't bother importing ctypes all the time. TODO - Is this line of thinking valid? Does it really make a difference?
     if sys.platform == 'win32':
         # From http://code.activestate.com/recipes/440694-determine-size-of-console-window-on-windows/
-        h = windll.kernel32.GetStdHandle(-12)
-        csbi = create_string_buffer(22)
-        res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
+        h = ctypes.windll.kernel32.GetStdHandle(-12)
+        csbi = ctypes.create_string_buffer(22)
+        res = ctypes.windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
 
         if res:
             import struct
