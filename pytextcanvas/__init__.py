@@ -100,6 +100,13 @@ def _checkForIntOrFloat(arg):
 
 
 def getTerminalSize():
+    """
+    Returns the size of the terminal as a tuple of two ints (width, height).
+
+    Raises PyTextCanvasException when called by a program that is not run from a terminal window.
+
+    NOTE - Currently this feature only works on Windows.
+    """
     import ctypes # getTerminalSize() will most likely rarely be used, so don't bother importing ctypes all the time. TODO - Is this line of thinking valid? Does it really make a difference?
     if sys.platform == 'win32':
         # From http://code.activestate.com/recipes/440694-determine-size-of-console-window-on-windows/
@@ -111,12 +118,11 @@ def getTerminalSize():
             import struct
             (bufx, bufy, curx, cury, wattr,
              left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
-            sizex = right - left + 1
-            sizey = bottom - top + 1
+            return right - left + 1, bottom - top + 1
         else:
-            sizex, sizey = 80, 25 # can't determine actual size - return default values
-        return sizex, sizey
+            raise PyTextCanvasException('Unable to determine terminal size. This happens when in a non-terminal environment, such as IDLE.') #sizex, sizey = 80, 25 # can't determine actual size - return default values
 
+    # TODO - finish for non windows platforms.
     # Linux:
     # sizex, sizey = os.popen('stty size', 'r').read().split()
     # return int(sizex), int(sizey)
@@ -126,6 +132,10 @@ def getTerminalSize():
 
 
 def clearScreen():
+    """
+    Clears the terminal by calling `cls` or `clear`, depending on what platform
+    this Python script is running from.
+    """
     if sys.platform == 'win32':
         os.system('cls')
     else:
@@ -133,8 +143,9 @@ def clearScreen():
 
 
 def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
-    """Returns True if the point of point_x, point_y is inside the area
-    described, inclusive of area_left and area_top.
+    """
+    Returns `True` if the point of `point_x`, `point_y` is inside the area
+    described, inclusive of `area_left` and `area_top`.
 
     >>> isInside(0, 0, 0, 0, 10, 10)
     True
@@ -145,24 +156,36 @@ def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
 
 
 class PyTextCanvasException(Exception):
-    """Generic exception for the pytextcanvase module. This module should never
-    produce an exception that isn't PyTextCanvasException. If it does, it should
+    """
+    Generic exception for the `pytextcanvase` module. PyTextCanvas should never
+    produce an exception that isn't `PyTextCanvasException`. If it does, it should
     be considered a bug."""
     pass
 
 
-class Canvas:
-    """Initialize a new Canvas, which represents a rectangular area of
-        text characters. The coordinates start in the upper left corner at
-        0, 0 and coordinates increase going right and down. Each position
-        in the canvas is called a cell and can contain a single text
-        character.
+'''
+# TODO - decide if this is a good idea
+def charGrid(width=80, height=25):
+    pass # TODO - A drastically simplified Canvas.
 
-        The size of the canvas is immutable. The size is specified in the
-        intializer through the width and height parameters or with a loads
-        string, which sets the size based on the maximum width and number
-        of lines in the loads string.
-        """
+
+def printCharGrid(charGrid):
+    pass
+'''
+
+class Canvas:
+    """
+    Initialize a new Canvas, which represents a rectangular area of
+    text characters. The coordinates start in the upper left corner at
+    0, 0 and coordinates increase going right and down. Each position
+    in the canvas is called a cell and can contain a single text
+    character.
+
+    The size of the canvas is immutable. The size is specified in the
+    intializer through the width and height parameters or with a loads
+    string, which sets the size based on the maximum width and number
+    of lines in the loads string.
+    """
     def __init__(self, width=None, height=None, loads=None, fg='#000000', bg='#ffffff'):
         """Initializes a new Canvas object."""
 
@@ -234,40 +257,15 @@ class Canvas:
     def width(self):
         return self._width
 
-    @width.setter
-    def width(self, value):
-        raise PyTextCanvasException('%r width is immutable' % (self.__class__.__name__))
-
-    @width.deleter
-    def width(self):
-        raise PyTextCanvasException('%r width is immutable' % (self.__class__.__name__))
-
 
     @property
     def height(self):
         return self._height
 
-    @height.setter
-    def height(self, value):
-        raise PyTextCanvasException('%r height is immutable' % (self.__class__.__name__))
-
-    @height.deleter
-    def height(self):
-        raise PyTextCanvasException('%r height is immutable' % (self.__class__.__name__))
-
 
     @property
     def area(self):
         return self._width * self._height
-
-    @area.setter
-    def area(self, value):
-        raise PyTextCanvasException('%r area is immutable' % (self.__class__.__name__))
-
-    @area.deleter
-    def area(self):
-        raise PyTextCanvasException('%r area is immutable' % (self.__class__.__name__))
-
 
 
     @property
@@ -277,10 +275,6 @@ class Canvas:
     @cursor.setter
     def cursor(self, value):
         self.goto(value)
-
-    @cursor.deleter
-    def cursor(self):
-        raise PyTextCanvasException('%r cursor is immutable' % (self.__class__.__name__))
 
 
 
@@ -292,10 +286,6 @@ class Canvas:
     def cursorx(self, value):
         self.goto(value, self._cursor[1])
 
-    @cursorx.deleter
-    def cursorx(self):
-        raise PyTextCanvasException('%r cursor is immutable' % (self.__class__.__name__))
-
 
 
     @property
@@ -305,10 +295,6 @@ class Canvas:
     @cursory.setter
     def cursory(self, value):
         self.goto(self._cursor[0], value)
-
-    @cursory.deleter
-    def cursory(self):
-        raise PyTextCanvasException('%r cursor is immutable' % (self.__class__.__name__))
 
 
 
@@ -343,14 +329,28 @@ class Canvas:
 
     def __repr__(self):
         """Return a limited representation of this Canvas object. The width,
-        and height information is included."""
+        and height information is included.
+
+        >>> canvas = Canvas()
+        >>> print(repr(canvas))
+        <'Canvas' object, width=80, height=25>
+        """
         return '<%r object, width=%r, height=%r>' % \
             (self.__class__.__name__, self._width, self._height)
 
 
     def __str__(self):
         """Return a multiline string representation of this Canvas object.
-        The bottom row does not end with a newline character."""
+        The bottom row does not end with a newline character.
+
+        >>> canvas = Canvas(10, 4)
+        >>> canvas.fill('x')
+        >>> print(canvas)
+        xxxxxxxxxx
+        xxxxxxxxxx
+        xxxxxxxxxx
+        xxxxxxxxxx
+        """
 
         if not self._strDirty:
             return self._strCache
@@ -626,8 +626,18 @@ class Canvas:
 
     def shift(self, xOffset, yOffset):
         """Shifts the characters on the canvas horizontally and vertically.
-        Unlike the rotate() method, characters will not wrap around the edges
-        of the canvas, but are lost instead.
+        Characters will not wrap around the edges of the canvas, but are
+        lost instead. These cells are set to `None`.
+
+        >>> canvas = Canvas(5, 5)
+        >>> canvas.fill('x')
+        >>> canvas.shift(2, 3)
+        >>> print(canvas)
+        <BLANKLINE>
+        <BLANKLINE>
+        <BLANKLINE>
+          xxx
+          xxx
         """
         if xOffset >= self.width or xOffset <= -self.width or \
            yOffset >= self.height or yOffset <= -self.height:
@@ -674,11 +684,10 @@ class Canvas:
 
     def clear(self):
         """Clears the entire canvas by setting every cell to None. These
-        cells are transparent. To make the cells blank, call fill(' ')."""
-
+        cells are transparent, not blank. To make the cells blank, call fill(' ')."""
         self.fill(None)
 
-
+    '''
     def copy(self, left=0, top=0, width=None, height=None):
         if width is None:
             width = self.width
@@ -694,8 +703,11 @@ class Canvas:
             for y in range(height):
                 canvasCopy[x, y] = self[x + left] # LEFT OFF
 
+        # TODO - finish
+
     def __copy__(self):
         pass
+    '''
 
     def loads(self, content):
         # TODO - how to handle \r?
@@ -743,20 +755,35 @@ class Canvas:
         self._cursor = (x, y)
 
 
+    '''
+    # TODO - implement, probably using pybresenham
     def rotate(self):
         pass
 
     def scale(self):
         pass
+    '''
 
     def flip(self, vertical=False, horizontal=False):
-        pass
+        if vertical:
+            self.vflip()
+        elif horizontal:
+            self.hflip()
+
 
     def vflip(self):
-        self.flip(vertical=True, horizontal=False)
+        for y in range(0, self.height // 2):
+            for x in range(0, self.width):
+                self._chars[x][y], self._chars[x][self.height - 1 - y] = self._chars[x][self.height - 1 - y], self._chars[x][y]
+        self._strDirty = True
+
 
     def hflip(self):
-        self.flip(vertical=False, horizontal=True)
+        for x in range(0, self.width // 2):
+            for y in range(0, self.height):
+                self._chars[x][y], self._chars[self.width - 1 - x][y] = self._chars[self.width - 1 - x][y], self._chars[x][y]
+        self._strDirty = True
+
 
     def fill(self, char=' '):
         """Clears the entire canvas by setting every cell to char, which
@@ -770,6 +797,8 @@ class Canvas:
             for y in range(self.height):
                 self[x, y] = char
 
+    '''
+# TODO - implement these
     def blit(self, dstCanvas):
         pass
 
@@ -808,6 +837,7 @@ class Canvas:
 
     def arc(self):
         pass
+    '''
 
 # TODO - should I use camelcase? I want to match the original Turtle module, but it uses, well, just lowercase.
 
@@ -877,10 +907,6 @@ class Turtle(object):
     def position(self, value):
         self.goto(value[0], value[1])
 
-    @position.deleter
-    def position(self):
-        raise PyTextCanvasException('position attribute cannot be deleted')
-
 
     @property
     def x(self):
@@ -890,10 +916,6 @@ class Turtle(object):
     def x(self, value):
         self.goto(value, self.y)
 
-    @x.deleter
-    def x(self):
-        raise PyTextCanvasException('x attribute cannot be deleted')
-
 
     @property
     def y(self):
@@ -902,10 +924,6 @@ class Turtle(object):
     @y.setter
     def y(self, value):
         self.goto(self._x, value)
-
-    @y.deleter
-    def y(self):
-        raise PyTextCanvasException('y attribute cannot be deleted')
 
 
 
@@ -920,10 +938,6 @@ class Turtle(object):
         else:
             self.penUp()
 
-    @isDown.deleter
-    def isDown(self):
-        raise PyTextCanvasException('isDown attribute cannot be deleted')
-
 
     @property
     def penChar(self):
@@ -937,11 +951,6 @@ class Turtle(object):
         if self.isDown and self.canvas.isOnCanvas(self.x, self.y):
             self.canvas._strDirty = True
             self.canvas._chars[int(self._x)][int(self._y)] = self._penChar
-
-
-    @penChar.deleter
-    def penChar(self):
-        raise PyTextCanvasException('penChar attribute cannot be deleted')
 
 
     def __repr__(self):
@@ -1240,6 +1249,24 @@ class Scene:
         pass
 
 
+def _drawPoints(points):
+    """A small debug function that takes an iterable of (x, y) integer tuples
+    and draws them to the screen."""
+    try:
+        points = [(int(x), int(y)) for x, y in points]
+    except:
+        raise PyTextCanvasException('points must only contains (x, y) numeric tuples')
+
+    minx = min([x for x, y in points])
+    maxx = max([x for x, y in points])
+    miny = min([y for x, y in points])
+    maxy = max([y for x, y in points])
+
+    canvas = Canvas(maxx - minx + 1, maxy - miny + 1)
+    for x, y in points:
+        canvas[x - minx, y - miny] = 'O'
+    print(canvas)
+
 
 if __name__ == '__main__':
-    doctest.testmod()
+    print(doctest.testmod())
