@@ -38,7 +38,7 @@ Road Map of Features:
 
 # TODO - add a mode where drawing ooutside the canvas is a no-op instead of raising an exception.
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 import doctest
 import math
