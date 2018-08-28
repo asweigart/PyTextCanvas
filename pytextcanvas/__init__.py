@@ -15,6 +15,8 @@ Add PyTextCanvasException class (maybe?)
 Add tkinter window
 Docstrings
 
+NOTE: PyTextCanvas is not thread safe.
+
 """
 
 """
@@ -36,13 +38,14 @@ Road Map of Features:
 
 # TODO - add a mode where drawing ooutside the canvas is a no-op instead of raising an exception.
 
+__version__ = '0.0.1'
 
 import doctest
 import math
 import os
 import sys
 
-#import pybresenham
+import pybresenham
 
 # Constants for Canvas size.
 DEFAULT_CANVAS_WIDTH = 80
@@ -103,7 +106,7 @@ def getTerminalSize():
     """
     Returns the size of the terminal as a tuple of two ints (width, height).
 
-    Raises PyTextCanvasException when called by a program that is not run from a terminal window.
+    Raises `PyTextCanvasException` when called by a program that is not run from a terminal window.
 
     NOTE - Currently this feature only works on Windows.
     """
@@ -174,20 +177,24 @@ def printCharGrid(charGrid):
 '''
 
 class Canvas:
-    """
-    Initialize a new Canvas, which represents a rectangular area of
-    text characters. The coordinates start in the upper left corner at
-    0, 0 and coordinates increase going right and down. Each position
-    in the canvas is called a cell and can contain a single text
-    character.
-
-    The size of the canvas is immutable. The size is specified in the
-    intializer through the width and height parameters or with a loads
-    string, which sets the size based on the maximum width and number
-    of lines in the loads string.
-    """
     def __init__(self, width=None, height=None, loads=None, fg='#000000', bg='#ffffff'):
-        """Initializes a new Canvas object."""
+        """
+        Initialize a new Canvas, which represents a rectangular area of
+        text characters. The coordinates start in the upper left corner at
+        0, 0 and coordinates increase going right and down. Each position
+        in the canvas is called a cell and can contain a single text
+        character.
+
+        The size of the canvas is immutable. The size is specified in the
+        intializer through the `width` and `height` parameters or with a multi-line `loads`
+        string, which sets the size based on the maximum width and number
+        of lines in the `loads` string.
+
+        The default size is 80 x 25 characters.
+
+        Currently, color is not supported and the `fg` and `bg` arguments do nothing.
+        """
+        self._truncate = False # By default, text written beyond the edges of the canvas will raise exceptions, unless self._truncate is True.
 
         if width is None and height is None and loads is not None:
             # self.width and self.height are set based on the size of the loads string
@@ -255,21 +262,46 @@ class Canvas:
 
     @property
     def width(self):
+        """The integer width of the canvas.
+
+        This is a read-only attribute.
+
+        >>> canvas = Canvas(10, 5)
+        >>> canvas.width
+        10
+        """
         return self._width
 
 
     @property
     def height(self):
+        """The integer height of the canvas.
+
+        This is a read-only attribute.
+
+        >>> canvas = Canvas(10, 5)
+        >>> canvas.height
+        5
+        """
         return self._height
 
 
     @property
     def area(self):
+        """The integer number of characters that can fit in the area of the canvas. This is the width multiplied by the height.
+
+        This attribute is read-only.
+
+        >>> canvas = Canvas(10, 5)
+        >>> canvas.area
+        50
+        """
         return self._width * self._height
 
 
     @property
     def cursor(self):
+
         return self._cursor
 
     @cursor.setter
@@ -297,24 +329,27 @@ class Canvas:
         self.goto(self._cursor[0], value)
 
 
-
     @property
-    def penChar(self):
-        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
+    def truncate(self):
+        """
+        By default, attempting to write characters beyond the edges of the
+        canvas will raise PyTextCanvasException, unless `truncate` is set
+        to True.
 
-    @penChar.setter
-    def penChar(self, value):
-        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
+        If the `truncate` attribute is `True`, this will override any
+        `truncate` method argument settings.
+        """
+        return self._truncate
 
-    @penChar.deleter
-    def penChar(self):
-        raise PyTextCanvasException('Canvas objects don\t have penChar attributes; you probably meant to use a Turtle object.')
+    @truncate.setter
+    def truncate(self, value):
+        self._truncate = bool(value)
 
 
     def isOnCanvas(self, x, y):
         """
-        Returns True if `x` and `y` are valid coordinates for a cell on this
-        canvas.
+        Returns True if `x` is between `0` and the canvas's `width - 1`, and
+        if `y` is between `0` and the canvas's `height - 1`, inclusive.
 
         >>> canvas = Canvas(10, 10)
         >>> canvas.isOnCanvas(0, 0)
@@ -601,6 +636,14 @@ class Canvas:
 
         return (x1, y1, x2, y2, kstep[0], kstep[1])
 
+    def _convertSingleIndexToTupleIndexes(self, index):
+        return (index % self._width, index // self._width)
+
+
+    def _convertTupleIndexsToSingleIndex(self, xindex, yindex):
+        return (yindex * self._width) + xindex
+
+
     def __contains__(self, item):
         """Returns True if item exists as a substring in a row in the string
         representation of this canvas. This string representation will
@@ -623,6 +666,63 @@ class Canvas:
                 if self._chars[x][y] != other._chars[x][y]:
                     return False
         return True
+
+
+    '''
+    def printCanvas(self):
+        """TODO Prints the canvas to the screen. Colors are displayed using Colorama."""
+        pass
+    '''
+
+    def write(self, text, x=None, y=None):
+        """
+        Writes text to the canvas, starting at the cursor location (or the `x`
+        and `y` arguments, if provided).
+
+        The cursor will automatically wrap around the right edge and go
+        back to the topleft afterwards.
+
+        >>> canvas = Canvas(20, 4)
+        >>> canvas.cursor
+        (0, 0)
+        >>> canvas.write('Hello world!' * 10)
+        >>> print(canvas)
+        rld!Hello world!Hell
+        o world!Hello world!
+        o world!Hello world!
+        Hello world!Hello wo
+        >>> canvas.cursor
+        (0, 2)
+        >>> canvas.write('ABC')
+        >>> print(canvas)
+        rld!Hello world!Hell
+        o world!Hello world!
+        ABCorld!Hello world!
+        Hello world!Hello wo
+        """
+        if x is None:
+            x = self.cursorx
+        if y is None:
+            y = self.cursory
+
+        self._strDirty = True
+        startIndex = self._convertTupleIndexsToSingleIndex(x, y)
+        for i in range(startIndex, startIndex + len(text)):
+            cx, cy = self._convertSingleIndexToTupleIndexes(i % self.area)
+            if not self.isOnCanvas(cx, cy):
+                break
+
+            self._chars[cx][cy] = text[i - startIndex]
+
+        self.cursor = self._convertSingleIndexToTupleIndexes((startIndex + len(text)) % self.area)
+
+
+
+
+
+
+
+
 
     def shift(self, xOffset, yOffset):
         """Shifts the characters on the canvas horizontally and vertically.
@@ -683,8 +783,8 @@ class Canvas:
 
 
     def clear(self):
-        """Clears the entire canvas by setting every cell to None. These
-        cells are transparent, not blank. To make the cells blank, call fill(' ')."""
+        """Clears the entire canvas by setting every cell to `None`. These
+        cells are transparent, not blank. To make the cells blank, call `fill(' ')`."""
         self.fill(None)
 
     '''
@@ -709,16 +809,44 @@ class Canvas:
         pass
     '''
 
-    def loads(self, content):
+    def loads(self, content, truncate=True):
+        r"""
+        Load the multi-line string in `content` as the text on this canvas.
+
+        This method is used by the `loads` argument in `Canvas`'s constructor function.
+
+        >>> canvas = Canvas(5, 2)
+        >>> canvas.loads('Hello\nworld')
+        >>> print(canvas)
+        Hello
+        world
+        >>> canvas2 = Canvas(6, 2)
+        >>> canvas2.loads('Hellooooo\nworld!!!\nHow are you?')
+        >>> print(canvas2)
+        Helloo
+        world!
+        """
         # TODO - how to handle \r?
+        if self._truncate: # The truncate setting overrides this truncate argument.
+            truncate = True
+
+        if not truncate:
+            lines = content.split('\n')
+            if len(lines) > self.height:
+                raise PyTextCanvasException('content argument is too tall for this canvas, pass True for truncate to ignore this error')
+            if max([len(line) for line in lines]) > self.width:
+                raise PyTextCanvasException('content argument is too wide for this canvas, pass True for truncate to ignore this error')
+
         y = 0
         for line in str(content).split('\n'):
             for x, v in enumerate(line):
                 if x >= self.width:
+                    # Excess text that goes beyond the right edge will be truncated.
                     break
                 self[x, y] = v
             y += 1
             if y >= self.height:
+                # Excess text that goes beyond the bottom edge will be truncated.
                 break
 
     def goto(self, x, y=None):
@@ -726,9 +854,9 @@ class Canvas:
         are the x and y coordinates (which can be ints or floats), or `x`
         is a tuple of two int/float values.
 
-        PyTextCanvas.goto() affects PyTextCanvas's cursor, which is always set
-        to int values. Turtle.goto() affects the position of the Turtle object,
-        which can be set to a float."""
+        `PyTextCanvas.goto()` affects the PyTextCanvas object's cursor,
+        which is always set to int values. `Turtle.goto()` affects the
+        position of the Turtle object's cursor, which can be set to a float."""
 
         # Note: This function manipulates _cursor directly.
         # These properties rely on goto() to for their functionality.
@@ -758,20 +886,37 @@ class Canvas:
     '''
     # TODO - implement, probably using pybresenham
     def rotate(self):
+        # TODO - need to decide if this should return a new, larger canvas to handle non-modulo-90 rotations
         pass
 
     def scale(self):
+        # TODO - need to decide if this should return a new canvas. (I think it should, why would you want the text scaled but not the canvas size?)
         pass
     '''
 
-    def flip(self, vertical=False, horizontal=False):
-        if vertical:
-            self.vflip()
-        elif horizontal:
-            self.hflip()
-
 
     def vflip(self):
+        """
+        Vertically flips the characters on this canvas.
+
+        >>> canvas = Canvas(4, 4)
+        >>> canvas.fill(',')
+        >>> canvas[0, 0] = 'A'
+        >>> canvas[1, 1] = 'B'
+        >>> canvas[2, 2] = 'C'
+        >>> canvas[3, 3] = 'D'
+        >>> print(canvas)
+        A,,,
+        ,B,,
+        ,,C,
+        ,,,D
+        >>> canvas.vflip()
+        >>> print(canvas)
+        ,,,D
+        ,,C,
+        ,B,,
+        A,,,
+        """
         for y in range(0, self.height // 2):
             for x in range(0, self.width):
                 self._chars[x][y], self._chars[x][self.height - 1 - y] = self._chars[x][self.height - 1 - y], self._chars[x][y]
@@ -779,6 +924,27 @@ class Canvas:
 
 
     def hflip(self):
+        """
+        Horizontally flips the characters on this canvas.
+
+        >>> canvas = Canvas(4, 4)
+        >>> canvas.fill(',')
+        >>> canvas[0, 0] = 'A'
+        >>> canvas[1, 1] = 'B'
+        >>> canvas[2, 2] = 'C'
+        >>> canvas[3, 3] = 'D'
+        >>> print(canvas)
+        A,,,
+        ,B,,
+        ,,C,
+        ,,,D
+        >>> canvas.hflip()
+        >>> print(canvas)
+        ,,,A
+        ,,B,
+        ,C,,
+        D,,,
+        """
         for x in range(0, self.width // 2):
             for y in range(0, self.height):
                 self._chars[x][y], self._chars[self.width - 1 - x][y] = self._chars[self.width - 1 - x][y], self._chars[x][y]
@@ -786,58 +952,196 @@ class Canvas:
 
 
     def fill(self, char=' '):
-        """Clears the entire canvas by setting every cell to char, which
-        is ' ' by default."""
+        """Clears the entire canvas by setting every cell to `char`, which
+        is ' ' by default.
+
+        >>> canvas = Canvas(4, 4)
+        >>> canvas.fill('x')
+        >>> print(canvas)
+        xxxx
+        xxxx
+        xxxx
+        xxxx
+        >>> canvas.fill('Q')
+        >>> print(canvas)
+        QQQQ
+        QQQQ
+        QQQQ
+        QQQQ
+        """
         if char is not None:
             char = str(char)
             if len(char) != 1:
-                raise PyTextCanvasException('char must be a single character')
+                raise PyTextCanvasException('char must be a single character or None')
 
         for x in range(self.width):
             for y in range(self.height):
-                self[x, y] = char
+                self._chars[x][y] = char
+        self._strDirty = True
+
+
+    def replace(self, oldChar, newChar):
+        r"""
+        Replaces every instance of the `oldChar` single-character string with
+        the `newChar` single-character string on the canvas.
+
+        >>> canvas = Canvas(4, 4, loads='__He\nllo_\nworl\nd___')
+        >>> print(canvas)
+        __He
+        llo_
+        worl
+        d___
+        >>> canvas.replace('_', 'x')
+        >>> print(canvas)
+        xxHe
+        llox
+        worl
+        dxxx
+        """
+        if oldChar is not None:
+            oldChar = str(oldChar)
+            if len(oldChar) != 1:
+                raise PyTextCanvasException('oldChar must be a single character or None')
+
+        if newChar is not None:
+            newChar = str(newChar)
+            if len(newChar) != 1:
+                raise PyTextCanvasException('newChar must be a single character or None')
+
+        for x in range(self.width):
+            for y in range(self.height):
+                if self._chars[x][y] == oldChar:
+                    self._chars[x][y] = newChar
+                    self._strDirty = True
 
     '''
-# TODO - implement these
+    # TODO - implement these
     def blit(self, dstCanvas):
         pass
-
-    def square(self):
-        pass
-
-    def rect(self, *args):
-        pass
-
-    def diamond(self, *args):
-        pass
-
-    def hexagon(self):
-        pass
-
-    def arrow(self):
-        pass
-
-    def corner(self):
-        pass # must be "horizontal" or "vertical"
-
-    def line(self):
-        pass
-
-    def lines(self):
-        pass
-
-    def polygon(self):
-        pass
-
-    def ellipse(self):
-        pass
-
-    def circle(self):
-        pass
-
-    def arc(self):
-        pass
     '''
+
+    def points(self, char, pointsIterable, truncate=True):
+        """
+        Draws the `char` character at all the (x, y) tuple coordinates in `pointsIterable`.
+        """
+        if self._truncate: # The truncate setting overrides this truncate argument.
+            truncate = True
+
+        self._strDirty = True
+
+        try:
+            for x, y in pointsIterable:
+                if self.isOnCanvas(x, y):
+                    self._chars[x][y] = char
+                    self._strDirty = True
+                elif not truncate:
+                    raise PyTextCanvasException('shape includes positions beyond the edge of the canvas')
+        except PyTextCanvasException:
+            raise # Reraise the exception to keep its exception message.
+        except Exception:
+            raise PyTextCanvasException('pointsIterable argument must be an iterable of (x, y) integer tuples')
+
+
+    def square(self, char, left, top, length, filled=False, thickness=1, truncate=True):
+        """
+        Draws a square composed of `char` characters. The square's topleft
+        corner is specified by `left` and `top`. The size is specified by
+        `length`. If `filled` is `True`, the interior is also filled in with
+        `char` characers.
+
+        This method will raise `PyTextCanvasException` if the square goes
+        beyond the edges of the canvas, unless `truncate` is set to `True`
+        or the canvas's `truncate` attribute is `True`.
+
+        >>> canvas = Canvas(7, 7)
+        >>> canvas.square('x', 0, 0, 7)
+        >>> canvas.square('o', 2, 2, 5)
+        >>> print(canvas)
+        xxxxxxx
+        x     x
+        x ooooo
+        x o   o
+        x o   o
+        x o   o
+        xxooooo
+        """
+        pointsIterable = pybresenham.rectangle(left, top, length, length, filled, thickness)
+        self.points(char, pointsIterable, truncate)
+
+    def rectangle(self, char, left, top, width, height, filled=False, thickness=1, truncate=True):
+        """
+        Draws a rectangle composed of `char` characters. The rectangle's topleft
+        corner is specified by `left` and `top`. The size is specified by
+        `width` and `height`. If `filled` is `True`, the interior is also filled in with
+        `char` characers.
+
+        This method will raise `PyTextCanvasException` if the square goes
+        beyond the edges of the canvas, unless `truncate` is set to `True`
+        or the canvas's `truncate` attribute is `True`.
+
+        >>> canvas = Canvas(6, 6)
+        >>> canvas.rectangle('o', 0, 0, 6, 6)
+        >>> canvas.rectangle('x', 2, 2, 2, 4)
+        >>> print(canvas)
+        oooooo
+        o    o
+        o xx o
+        o xx o
+        o xx o
+        ooxxoo
+        """
+
+        if thickness != 1:
+            raise NotImplementedError('The pytextcanvas module is under development and the filled, thickness, and endcap parameters are not implemented. You can contribute at https://github.com/asweigart/pytextcanvas')
+
+        pointsIterable = pybresenham.rectangle(left, top, width, height, filled, thickness)
+        self.points(char, pointsIterable, truncate)
+
+    def diamond(self, char, x, y, radius, filled=False, thickness=1, truncate=True):
+        pointsIterable = pybresenham.diamond(x, y, radius, filled, thickness)
+        self.points(char, pointsIterable, truncate)
+
+
+    def line(self, char, x1, y1, x2, y2, thickness=1, endcap=None, truncate=True):
+        pointsIterable = pybresenham.line(x1, y1, x2, y2, thickness, endcap)
+        self.points(char, pointsIterable, truncate)
+
+
+    def lines(self, char, points, closed=False, thickness=1, endcap=None, truncate=True):
+        pointsIterable = pybresenham.lines(points, closed, thickness, endcap)
+        self.points(char, pointsIterable, truncate)
+
+
+    def polygon(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1, truncate=True):
+        pointsIterable = pybresenham.polygon(char, x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
+        self.points(char, pointsIterable, truncate)
+
+
+    def polygonVertices(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, truncate=True):
+        pointsIterable = pybresenham.polygonVertices(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical)
+        self.points(char, pointsIterable, truncate)
+
+
+    def floodFill(self, char, x, y, truncate=True):
+        points = set()
+        for cx in range(self.width):
+            for cy in range(self.height):
+                if self._chars[cx][cy] != char:
+                    points.add((cx, cy))
+
+        pointsIterable = pybresenham.floodFill(points, x, y)
+        self.points(char, pointsIterable, truncate)
+
+
+    def circle(self, char, x, y, radius, filled=False, thickness=1, truncate=True):
+        pointsIterable = pybresenham.circle(x, y, radius, filled, thickness)
+        self.points(char, pointsIterable, truncate)
+
+
+    def grid(self, char, gridLeft, gridTop, numBoxesWide, numBoxesHigh, boxWidth, boxHeight, thickness=1, truncate=True):
+        pointsIterable = pybresenham.grid(gridLeft, gridTop, numBoxesWide, numBoxesHigh, boxWidth, boxHeight, thickness)
+        self.points(char, pointsIterable, truncate)
+
 
 # TODO - should I use camelcase? I want to match the original Turtle module, but it uses, well, just lowercase.
 
@@ -871,7 +1175,6 @@ class Canvas:
             return negIndex # if negIndex is positive, just return it as is
 
 
-
 # Constants for pen drawing.
 NORTH = 90.0
 SOUTH = 270.0
@@ -879,9 +1182,16 @@ EAST = 0.0
 WEST = 180.0
 DEFAULT_PEN_CHAR = '#'
 
+'''
+# TODO - to be implemented
 
 class Turtle(object):
-    """A LOGO-like turtle to draw on a canvas."""
+    """A LOGO-like turtle to draw on a canvas. The "turtle" is a position on
+    the canvas that can be moved around using turtle-like movement methods,
+    drawing characters to the canvas as it moves around. The method names
+    have been chosen to be similar to the Python Standard Library's `turtle`
+    module.
+    """
 
     def __init__(self, canvas):
         self.canvas = canvas
@@ -1186,9 +1496,10 @@ class Turtle(object):
         pass
 
     hc = hideCursor
+'''
 
-
-
+'''
+# TODO - to be implemented
 class CanvasDict(dict):
     # TODO - a way to add generic data to the canvas (such as fg or bg)
     def __init__(self, width, height):
@@ -1201,7 +1512,7 @@ class CanvasDict(dict):
         pass
 
 
-class Scene:
+class Scene: # TODO - rename to "ChainCanvas" or "CanvasChain"?
     def __init__(self, canvasesAndPositions):
         self.canvasesAndPositions = []
         # NOTE: The Canvas at index 0 is significant because it sets the size
@@ -1247,25 +1558,7 @@ class Scene:
 
     def append(self, canvas, position):
         pass
-
-
-def _drawPoints(points):
-    """A small debug function that takes an iterable of (x, y) integer tuples
-    and draws them to the screen."""
-    try:
-        points = [(int(x), int(y)) for x, y in points]
-    except:
-        raise PyTextCanvasException('points must only contains (x, y) numeric tuples')
-
-    minx = min([x for x, y in points])
-    maxx = max([x for x, y in points])
-    miny = min([y for x, y in points])
-    maxy = max([y for x, y in points])
-
-    canvas = Canvas(maxx - minx + 1, maxy - miny + 1)
-    for x, y in points:
-        canvas[x - minx, y - miny] = 'O'
-    print(canvas)
+'''
 
 
 if __name__ == '__main__':
