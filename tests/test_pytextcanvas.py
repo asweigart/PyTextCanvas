@@ -65,17 +65,17 @@ def test_width_height():
     assert canvas.height ==  4
 
     # Make sure the width, height, and area are immutable.
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         canvas.width = 10
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.width
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         canvas.height = 10
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.height
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         canvas.area = 10
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.area
 
 
@@ -542,7 +542,8 @@ def test_clear():
     assert canvas == blankCanvas
 
 
-
+'''
+# TODO - disable the turtle tests until we have that implementation started
 def test_compass_functions():
     canvas = pytextcanvas.Canvas()
     turtle = pytextcanvas.Turtle(canvas)
@@ -686,7 +687,7 @@ def test_showCursor():
 
 def test_hideCursor():
     pass
-
+'''
 
 def test_isOnCanvas():
     canvas = pytextcanvas.Canvas(10, 10)
@@ -781,21 +782,21 @@ def test_cursor():
         canvas.cursor = (1.1, 1)
     with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.cursor = (1, 1.1)
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.cursor
 
     with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.cursorx = 'invalid'
     with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.cursorx = 1.1
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.cursorx
 
     with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.cursory = 'invalid'
     with pytest.raises(pytextcanvas.PyTextCanvasException):
         canvas.cursory = 1.1
-    with pytest.raises(pytextcanvas.PyTextCanvasException):
+    with pytest.raises(AttributeError):
         del canvas.cursory
 
     # Test to make sure coordinates are within the canvas.
