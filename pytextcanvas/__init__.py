@@ -287,6 +287,19 @@ class Canvas:
 
 
     @property
+    def size(self):
+        """The integer width and height of the canvas.
+
+        This is a read-only attribute.
+
+        >>> canvas = Canvas(10, 5)
+        >>> canvas.size
+        (10, 55)
+        """
+        return (self._width, self._height)
+
+
+    @property
     def area(self):
         """The integer number of characters that can fit in the area of the canvas. This is the width multiplied by the height.
 
@@ -1113,7 +1126,7 @@ class Canvas:
 
 
     def polygon(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1, truncate=True):
-        pointsIterable = pybresenham.polygon(char, x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
+        pointsIterable = pybresenham.polygon(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
         self.points(char, pointsIterable, truncate)
 
 
