@@ -1281,6 +1281,16 @@ class Canvas:
             return negIndex # if negIndex is positive, just return it as is
 
 
+    def rows(self):
+        for y in range(self.height):
+            yield tuple([self._chars[x][y] for x in range(self.width)])
+
+
+    def cols(self):
+        for x in range(self.width):
+            yield tuple([self._chars[x][y] for y in range(self.height)])
+
+
 # Constants for pen drawing.
 NORTH = 90.0
 SOUTH = 270.0
