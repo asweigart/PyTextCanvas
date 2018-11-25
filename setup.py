@@ -1,23 +1,28 @@
 from setuptools import setup
 import os
-
-here = os.path.abspath(os.path.dirname(__file__))
+import re
 
 # Get the long description from the README file
-with open(os.path.join(here, 'README.rst')) as f:
-    long_description = f.read()
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, 'README.md')) as fileObj:
+    long_description = fileObj.read()
+
+# Load version from module (without loading the whole module)
+with open('src/pytextcanvas/__init__.py', 'r') as fileObj:
+    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+                        fileObj.read(), re.MULTILINE).group(1)
 
 
 setup(
     name='PyTextCanvas',
-    version=__import__('pytextcanvas').__version__,
+    version=version,
     url='https://github.com/asweigart/pytextcanvas',
     author='Al Sweigart',
     author_email='al@inventwithpython.com',
     description=('PyTextCanvas is a module for writing text and ascii art to a 2D string "canvas" in Python.'),
     license='BSD',
     long_description=long_description,
-    packages=['pytextcanvas'],
+    packages=['src/pytextcanvas'],
     test_suite='tests',
     install_requires=['pybresenham'],
     keywords="text canvas bresenham line circle drawing 2D geometry shapes vector bitmap rotate rotation vector2bitmap",
