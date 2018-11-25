@@ -10,6 +10,8 @@ PyTextCanvas is a module for writing text and ascii art to a 2D canvas in Python
 """
 TODO
 
+!!!!! Set it up so that Cells can hold arbitrary objects. - Wait, how is this different from just a generic matrix data structure
+
 Change properties to descriptors
 Add PyTextCanvasException class (maybe?)
 Add tkinter window
