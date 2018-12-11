@@ -1,4 +1,3 @@
-============
 PyTextCanvas
 ============
 
@@ -12,14 +11,14 @@ This module could be used in curses-like or urwid-like modules.
 
 
 Installation
-============
+------------
 
 
     ``pip install pytextcanvas``
 
 
 Example Usage
-=============
+-------------
 
     >>> import pytextcanvas as pytc
     >>> canvas = pytc.Canvas(20, 4)

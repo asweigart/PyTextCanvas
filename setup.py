@@ -1,16 +1,15 @@
-from setuptools import setup
-import os
+from setuptools import setup, find_packages
 import re
 
-# Get the long description from the README file
-here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, 'README.md')) as fileObj:
-    long_description = fileObj.read()
 
 # Load version from module (without loading the whole module)
-with open('src/pytextcanvas/__init__.py', 'r') as fileObj:
+with open('src/pytextcanvas/__init__.py', 'r') as fo:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        fileObj.read(), re.MULTILINE).group(1)
+                        fo.read(), re.MULTILINE).group(1)
+
+# Read in the README.md for the long description.
+with open('README.md') as fo:
+    long_description = fo.read()
 
 
 setup(
@@ -20,11 +19,12 @@ setup(
     author='Al Sweigart',
     author_email='al@inventwithpython.com',
     description=('PyTextCanvas is a module for writing text and ascii art to a 2D string "canvas" in Python.'),
-    license='BSD',
+    license='GPLv3+',
     long_description=long_description,
-    packages=['src/pytextcanvas'],
+    packages=find_packages(where='src'),
+    package_dir={'': 'src'},
     test_suite='tests',
-    install_requires=['pybresenham'],
+    install_requires=['pybresenham', 'colorama'],
     keywords="text canvas bresenham line circle drawing 2D geometry shapes vector bitmap rotate rotation vector2bitmap",
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -45,6 +45,6 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3.7',
     ],
 )
