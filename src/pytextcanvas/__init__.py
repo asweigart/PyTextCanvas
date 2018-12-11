@@ -44,60 +44,26 @@ __version__ = '0.0.3'
 
 import doctest
 import math
-import os
-import sys
 
+#from colorama import Fore, Back, RED, GREEN, BLUE, BLACK, WHITE, CYAN, MAGENTA, YELLOW
 import pybresenham
 
-# Constants for Canvas size.
+
+import pytextcanvas.terminal
+
+# Constants
 DEFAULT_CANVAS_WIDTH = 80
 DEFAULT_CANVAS_HEIGHT = 25
 
+DEFAULT_FG = '#000000'
+DEFAULT_BG = '#ffffff'
 
-# TODO - Separate out htis color stuff and hexColor() to their own module. Research how colorama and other modules use color.
-# Based off of the CSS3 standard names. Data from James Bennett's webcolors module: https://github.com/ubernostrum/webcolors
-COLOR_NAMES_TO_HEX = {'aliceblue': '#f0f8ff','antiquewhite': '#faebd7','aqua': '#00ffff','aquamarine': '#7fffd4','azure': '#f0ffff','beige': '#f5f5dc','bisque': '#ffe4c4','black': '#000000','blanchedalmond': '#ffebcd','blue': '#0000ff','blueviolet': '#8a2be2','brown': '#a52a2a','burlywood': '#deb887','cadetblue': '#5f9ea0','chartreuse': '#7fff00','chocolate': '#d2691e','coral': '#ff7f50','cornflowerblue': '#6495ed','cornsilk': '#fff8dc','crimson': '#dc143c','cyan': '#00ffff','darkblue': '#00008b','darkcyan': '#008b8b','darkgoldenrod': '#b8860b','darkgray': '#a9a9a9','darkgrey': '#a9a9a9','darkgreen': '#006400','darkkhaki': '#bdb76b','darkmagenta': '#8b008b','darkolivegreen': '#556b2f','darkorange': '#ff8c00','darkorchid': '#9932cc','darkred': '#8b0000','darksalmon': '#e9967a','darkseagreen': '#8fbc8f','darkslateblue': '#483d8b','darkslategray': '#2f4f4f','darkslategrey': '#2f4f4f','darkturquoise': '#00ced1','darkviolet': '#9400d3','deeppink': '#ff1493','deepskyblue': '#00bfff','dimgray': '#696969','dimgrey': '#696969','dodgerblue': '#1e90ff','firebrick': '#b22222','floralwhite': '#fffaf0','forestgreen': '#228b22','fuchsia': '#ff00ff','gainsboro': '#dcdcdc','ghostwhite': '#f8f8ff','gold': '#ffd700','goldenrod': '#daa520','gray': '#808080','grey': '#808080','green': '#008000','greenyellow': '#adff2f','honeydew': '#f0fff0','hotpink': '#ff69b4','indianred': '#cd5c5c','indigo': '#4b0082','ivory': '#fffff0','khaki': '#f0e68c','lavender': '#e6e6fa','lavenderblush': '#fff0f5','lawngreen': '#7cfc00','lemonchiffon': '#fffacd','lightblue': '#add8e6','lightcoral': '#f08080','lightcyan': '#e0ffff','lightgoldenrodyellow': '#fafad2','lightgray': '#d3d3d3','lightgrey': '#d3d3d3','lightgreen': '#90ee90','lightpink': '#ffb6c1','lightsalmon': '#ffa07a','lightseagreen': '#20b2aa','lightskyblue': '#87cefa','lightslategray': '#778899','lightslategrey': '#778899','lightsteelblue': '#b0c4de','lightyellow': '#ffffe0','lime': '#00ff00','limegreen': '#32cd32','linen': '#faf0e6','magenta': '#ff00ff','maroon': '#800000','mediumaquamarine': '#66cdaa','mediumblue': '#0000cd','mediumorchid': '#ba55d3','mediumpurple': '#9370db','mediumseagreen': '#3cb371','mediumslateblue': '#7b68ee','mediumspringgreen': '#00fa9a','mediumturquoise': '#48d1cc','mediumvioletred': '#c71585','midnightblue': '#191970','mintcream': '#f5fffa','mistyrose': '#ffe4e1','moccasin': '#ffe4b5','navajowhite': '#ffdead','navy': '#000080','oldlace': '#fdf5e6','olive': '#808000','olivedrab': '#6b8e23','orange': '#ffa500','orangered': '#ff4500','orchid': '#da70d6','palegoldenrod': '#eee8aa','palegreen': '#98fb98','paleturquoise': '#afeeee','palevioletred': '#db7093','papayawhip': '#ffefd5','peachpuff': '#ffdab9','per': '#cd853f','pink': '#ffc0cb','plum': '#dda0dd','powderblue': '#b0e0e6','purple': '#800080','red': '#ff0000','rosybrown': '#bc8f8f','royalblue': '#4169e1','saddlebrown': '#8b4513','salmon': '#fa8072','sandybrown': '#f4a460','seagreen': '#2e8b57','seashell': '#fff5ee','sienna': '#a0522d','silver': '#c0c0c0','skyblue': '#87ceeb','slateblue': '#6a5acd','slategray': '#708090','slategrey': '#708090','snow': '#fffafa','springgreen': '#00ff7f','steelblue': '#4682b4','tan': '#d2b48c','teal': '#008080','thistle': '#d8bfd8','tomato': '#ff6347','turquoise': '#40e0d0','violet': '#ee82ee','wheat': '#f5deb3','white': '#ffffff','whitesmoke': '#f5f5f5','yellow': '#ffff00','yellowgreen': '#9acd32',}
+BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW = range(8)
 
-def hexColor(color):
-    """
-    Converts the `color` parameter to a standard '#ffffff' color string of a # followed by six hexadecimal digits. The `color` parameter can formatted as a CSS3 name, #ffffff, ffffff, #fff, or fff.
+# Terminal functions:
+getTerminalSize = pytextcanvas.terminal.getTerminalSize
+clearScreen = pytextcanvas.terminal.clearScreen
 
-    TODO: Expand to include rgb triplet integers, and three percentages?
-
-    >>> hexColor('white')
-    '#ffffff'
-    >>> hexColor('#ffffff')
-    '#ffffff'
-    >>> hexColor('#fff')
-    '#ffffff'
-    >>> hexColor('ffffff')
-    '#ffffff'
-    >>> hexColor('fff')
-    '#ffffff'
-    >>> hexColor('#abc')
-    '#aabbcc'
-    """
-    if type(color) != str:
-        raise PyTextCanvasException('Color must be of type str, not %s.' % (type(color)))
-
-    color = color.lower() # normalize to lowercase
-
-    if color in COLOR_NAMES_TO_HEX:
-        return COLOR_NAMES_TO_HEX[color]
-
-    if color.startswith('#'):
-        color = color[1:] # remove the leading #
-
-    try:
-        int(color, 16) # check that it's a hexadecimal number
-        if len(color) == 3:
-            return '#' + color[0] + color[0] + color[1] + color[1] + color[2] + color[2] # normalize to '#ffffff' format
-        elif len(color) == 6:
-            return '#' + color
-        else:
-            raise PyTextCanvasException('Color must be a hexadecimal number or valid color name.')
-    except ValueError:
-        raise PyTextCanvasException('Color` must be a hexadecimal number, not %s.' % (type(color)))
 
 
 def _checkForIntOrFloat(arg):
@@ -105,47 +71,6 @@ def _checkForIntOrFloat(arg):
         raise PyTextCanvasException('argument must be int or float, not %s' % (arg.__class__.__name__))
 
 
-def getTerminalSize():
-    """
-    Returns the size of the terminal as a tuple of two ints (width, height).
-
-    Raises `PyTextCanvasException` when called by a program that is not run from a terminal window.
-
-    NOTE - Currently this feature only works on Windows.
-    """
-    import ctypes # getTerminalSize() will most likely rarely be used, so don't bother importing ctypes all the time. TODO - Is this line of thinking valid? Does it really make a difference?
-    if sys.platform == 'win32':
-        # From http://code.activestate.com/recipes/440694-determine-size-of-console-window-on-windows/
-        h = ctypes.windll.kernel32.GetStdHandle(-12)
-        csbi = ctypes.create_string_buffer(22)
-        res = ctypes.windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
-
-        if res:
-            import struct
-            (bufx, bufy, curx, cury, wattr,
-             left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
-            return right - left + 1, bottom - top + 1
-        else:
-            raise PyTextCanvasException('Unable to determine terminal size. This happens when in a non-terminal environment, such as IDLE.') #sizex, sizey = 80, 25 # can't determine actual size - return default values
-
-    # TODO - finish for non windows platforms.
-    # Linux:
-    # sizex, sizey = os.popen('stty size', 'r').read().split()
-    # return int(sizex), int(sizey)
-
-    #else:
-    #    raise PyTextCanvasException('Cannot determine the platform')
-
-
-def clearScreen():
-    """
-    Clears the terminal by calling `cls` or `clear`, depending on what platform
-    this Python script is running from.
-    """
-    if sys.platform == 'win32':
-        os.system('cls')
-    else:
-        os.system('clear')
 
 
 def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
@@ -169,18 +94,8 @@ class PyTextCanvasException(Exception):
     pass
 
 
-'''
-# TODO - decide if this is a good idea
-def charGrid(width=80, height=25):
-    pass # TODO - A drastically simplified Canvas.
-
-
-def printCharGrid(charGrid):
-    pass
-'''
-
 class Canvas:
-    def __init__(self, width=None, height=None, loads=None, defaultFg='#000000', defaultBg='#ffffff'):
+    def __init__(self, width=None, height=None, loads=None, fg=None, bg=None):
         """
         Initialize a new Canvas, which represents a rectangular area of
         text characters. The coordinates start in the upper left corner at
@@ -197,11 +112,11 @@ class Canvas:
 
         Currently, color is not supported and the `fg` and `bg` arguments do nothing.
         """
-        self._truncate = False # By default, text written beyond the edges of the canvas will raise exceptions, unless self._truncate is True.
+        self._truncate = True # By default, text written beyond the edges of the canvas will raise exceptions, unless self._truncate is True.
 
         if width is None and height is None and loads is not None:
             # self.width and self.height are set based on the size of the loads string
-            loadsLines = loads.split('\n') # TODO - how to handle \r\n cases?
+            loadsLines = loads.splitlines() # TODO - how to handle \r\n cases?
             self._width = max([len(line) for line in loadsLines])
             self._height = len(loadsLines)
         else:
@@ -237,24 +152,30 @@ class Canvas:
         # be reflected.
         self._chars = [[None] * self._height for i in range(self._width)]
 
+
+        if fg is not None and fg not in range(8):
+            raise PyTextCanvasException('fg arg must be None or one of the BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        if bg is not None and bg not in range(8):
+            raise PyTextCanvasException('bg arg must be None or one of the BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+
         # The foreground & background of each cell in the canvas. These are
-        # stored as strings like html color settings, i.e. '#ffffff'. The None
+        # stored as one of the six color constants, which are ints 0-7. The None
         # value represents the default canvas setting. If both fg and bg
         # are set to None, this canvas isn't "colorfied" and doesn't have
         # color information stored (to save memory).
-        if defaultFg is None and defaultBg is None:
+        if fg is None and bg is None:
+            # This canvas object doesn't store color information.
             self._colorfied = False
-            self._defaultFg = None
-            self._defaultBg = None
-            self._fg = None
-            self._bg = None
+            self._fginfo = None
+            self._bginfo = None
         else:
-            self._colorfied = True
-            # Default fg and bg are used when a cell has no color info (i.e. None)
-            self._defaultFg = defaultFg
-            self._defaultBg = defaultBg
-            self._fg = [[None] * self._height for i in range(self._width)]
-            self._bg = [[None] * self._height for i in range(self._width)]
+            if fg is None:
+                fg = WHITE
+            if bg is None:
+                bg = BLACK
+            self._colorfied = True # This canvas object does store color information.
+            self._fginfo = [[None] * self._height for i in range(self._width)]
+            self._bginfo = [[None] * self._height for i in range(self._width)]
         # TODO - the rest of the color implementation needs to be done.
 
         self._cursor = (0, 0) # The cursor is always set to integers.
@@ -327,44 +248,14 @@ class Canvas:
     def colorfied(self, value):
         if not self._colorfied and value:
             # Going from not colorfied to colorfied.
-            self._defaultFg = '#000000'
-            self._defaultBg = '#ffffff'
-            self._fg = [[None] * self._height for i in range(self._width)]
-            self._bg = [[None] * self._height for i in range(self._width)]
+            self._fginfo = [[None] * self._height for i in range(self._width)]
+            self._bginfo = [[None] * self._height for i in range(self._width)]
         elif self._colorfied and not value:
             # Going from colorfied to not colorfied.
-            self._defaultFg = None
-            self._defaultBg = None
-            self._fg = None
-            self._bg = None
+            self._fginfo = None
+            self._bginfo = None
 
         self._colorfied = bool(value)
-
-
-    @property
-    def defaultFg(self):
-        """
-        The default color to use when a position on the canvas has no
-        foreground color set.
-        """
-        return self._cursor
-
-    @defaultFg.setter
-    def defaultFg(self, value):
-        self._defaultFg = hexColor(value)
-
-
-    @property
-    def defaultBg(self):
-        """
-        The default color to use when a position on the canvas has no
-        background color set.
-        """
-        return self._cursor
-
-    @defaultBg.setter
-    def defaultBg(self, value):
-        self._defaultBg = hexColor(value)
 
 
     @property
@@ -877,15 +768,13 @@ class Canvas:
         for x in range(width):
             for y in range(height):
                 canvasCopy._chars[x][y] = self._chars[x + left][y + top]
-                canvasCopy._fg[x][y] = self._fg[x + left][y + top]
-                canvasCopy._bg[x][y] = self._bg[x + left][y + top]
+                canvasCopy._fginfo[x][y] = self._fginfo[x + left][y + top]
+                canvasCopy._bginfo[x][y] = self._bginfo[x + left][y + top]
 
         # Copy the various properties.
         canvasCopy._truncate = self._truncate
         canvasCopy._cursor = self._cursor
         canvasCopy._colorfied = self._colorfied
-        canvasCopy._defaultFg = self._defaultFg
-        canvasCopy._defaultBg = self._defaultBg
 
         return canvasCopy
 
@@ -910,8 +799,8 @@ class Canvas:
             for y in range(canvasToPaste.height):
                 if self.isOnCanvas(x + left, y + top):
                     self._chars[x + left][y + top] = canvasToPaste._chars[x][y]
-                    self._fg[x + left][y + top] = canvasToPaste._fg[x][y]
-                    self._bg[x + left][y + top] = canvasToPaste._bg[x][y]
+                    self._fginfo[x + left][y + top] = canvasToPaste._fginfo[x][y]
+                    self._bginfo[x + left][y + top] = canvasToPaste._bginfo[x][y]
                 elif not truncate:
                     raise PyTextCanvasException('Attempted to paste beyond the edge of the Canvas at x %s y %s' % (x + left, y + top))
         self._strDirty = True
@@ -939,14 +828,14 @@ class Canvas:
             truncate = True
 
         if not truncate:
-            lines = content.split('\n')
+            lines = content.splitlines()
             if len(lines) > self.height:
                 raise PyTextCanvasException('content argument is too tall for this canvas, pass True for truncate to ignore this error')
             if max([len(line) for line in lines]) > self.width:
                 raise PyTextCanvasException('content argument is too wide for this canvas, pass True for truncate to ignore this error')
 
         y = 0
-        for line in str(content).split('\n'):
+        for line in str(content).splitlines():
             for x, v in enumerate(line):
                 if x >= self.width:
                     # Excess text that goes beyond the right edge will be truncated.
@@ -1293,390 +1182,6 @@ class Canvas:
             yield tuple([self._chars[x][y] for y in range(self.height)])
 
 
-# Constants for pen drawing.
-NORTH = 90.0
-SOUTH = 270.0
-EAST = 0.0
-WEST = 180.0
-DEFAULT_PEN_CHAR = '#'
-
-'''
-# TODO - to be implemented
-
-class Turtle(object):
-    """A LOGO-like turtle to draw on a canvas. The "turtle" is a position on
-    the canvas that can be moved around using turtle-like movement methods,
-    drawing characters to the canvas as it moves around. The method names
-    have been chosen to be similar to the Python Standard Library's `turtle`
-    module.
-    """
-
-    def __init__(self, canvas):
-        self.canvas = canvas
-        self._x = 0.0
-        self._y = 0.0
-        self.heading = EAST
-
-        """ Heading:
-               90
-                |
-          180 --*-- 0
-                |
-               270
-        """
-        self._isDown = False
-        self._penChar = DEFAULT_PEN_CHAR
-
-    @property
-    def position(self):
-        return (self._x, self._y)
-
-    @position.setter
-    def position(self, value):
-        self.goto(value[0], value[1])
-
-
-    @property
-    def x(self):
-        return self._x
-
-    @x.setter
-    def x(self, value):
-        self.goto(value, self.y)
-
-
-    @property
-    def y(self):
-        return self._y
-
-    @y.setter
-    def y(self, value):
-        self.goto(self._x, value)
-
-
-
-    @property
-    def isDown(self):
-        return self._isDown
-
-    @isDown.setter
-    def isDown(self, value):
-        if value:
-            self.penDown()
-        else:
-            self.penUp()
-
-
-    @property
-    def penChar(self):
-        return self._penChar
-
-    @penChar.setter
-    def penChar(self, value):
-        if not isinstance(value, str) or len(value) != 1:
-            raise PyTextCanvasException('penChar must be set to a single character string')
-        self._penChar = value
-        if self.isDown and self.canvas.isOnCanvas(self.x, self.y):
-            self.canvas._strDirty = True
-            self.canvas._chars[int(self._x)][int(self._y)] = self._penChar
-
-
-    def __repr__(self):
-        """Returns a string representation of the Turtle object, including its coordiantes."""
-        return '<%r object, x=%r, y=%r, pen=%r>' % \
-            (self.__class__.__name__, self._x, self._y, self._penChar)
-
-
-    def __eq__(self, other):
-        try:
-            return self._x == other[0] and self._y == other[1]
-        except:
-            pass # Nothing need to be done if other wasn't an iterable.
-
-        if not isinstance(other, self.__class__):
-            return False
-
-        return self._x == other._x and self._y == other._y
-
-
-    def forward(self, distance):
-        # TODO - note that the position can move off of the edge of the canvas. Any drawing done here is lost.
-        pass
-
-    fd = forward
-
-    def backward(self, distance):
-        pass
-
-    bk = back = backward
-
-    def right(self, angle):
-        pass
-
-    rt = right
-
-    def left(self, angle):
-        pass
-
-    lt = left
-
-
-    def goto(self, x, y=None):
-        """Sets the curor to a specific xy point on the Canvas. `x` and `y`
-        are the x and y coordinates (which can be ints or floats), or `x`
-        is a tuple of two int/float values."""
-
-        # Note: This function manipulates _position and _cursor directly.
-        # These properties rely on goto() to for their functionality.
-        if isinstance(x, (int, float)):
-            _checkForIntOrFloat(y)
-
-        else:
-            try:
-                x, y = tuple(x)
-            except TypeError:
-                raise PyTextCanvasException('argument must be iterable of two int or float values')
-            _checkForIntOrFloat(x)
-            _checkForIntOrFloat(y)
-
-        # TODO - handle
-
-        self._position = (x, y)
-
-
-    setpost = setposition = goto
-
-    def setx(self, x):
-        self.goto(x, self.position[1])
-
-    def sety(self, y):
-        self.goto(self.position[0], y)
-
-    def setheading(self, toAngle):
-        pass
-
-    seth = setheading
-
-
-    def north(self, distance=1.0):
-        """Move the turtle cursor north (upwards).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._y -= distance
-    n = north
-
-    def south(self, distance=1.0):
-        """Move the turtle cursor south (downwards).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._y += distance
-    s = south
-
-    def east(self, distance=1.0):
-        """Move the turtle cursor east (right).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x += distance
-    e = east
-
-    def west(self, distance=1.0):
-        """Move the turtle cursor west (left).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x -= distance
-    w = west
-
-    def northeast(self, distance=1.0):
-        """Move the turtle cursor northeast (up and right).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x += distance
-        self._y -= distance
-    ne = northeast
-
-    def northwest(self, distance=1.0):
-        """Move the turtle cursor northwest (up and left).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x -= distance
-        self._y -= distance
-    nw = northwest
-
-    def southeast(self, distance=1.0):
-        """Move the turtle cursor southeast (down and right).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x += distance
-        self._y += distance
-    se = southeast
-
-    def southwest(self, distance=1.0):
-        """Move the turtle cursor southwest (down and left).
-
-        Args:
-            distance: An int or float for how far to move the cursor. This
-            number can also be negative.
-        """
-        _checkForIntOrFloat(distance)
-        self._x -= distance
-        self._y += distance
-    sw = southwest
-
-
-    def home(self):
-        self._x = 0.0
-        self._y = 0.0
-
-    # NOTE: No undo in PyTextCanvas.
-
-    def towards(self, x, y=None):
-        pass
-
-    def distance(self, x, y=None):
-        pass
-
-    def degrees(self):
-        pass
-
-    def radians(self):
-        pass
-
-    def penDown(self):
-        self._isDown = True
-        if self.canvas.isOnCanvas(self.x, self.y):
-            self.canvas._strDirty = True
-            self.canvas._chars[int(self.x)][int(self.y)] = self._penChar
-
-    pd = down = penDown
-
-    def penUp(self):
-        self._isDown = False
-
-    pu = up = penUp
-
-    def penColor(self):
-        pass # TODO - rename to just "color"?
-
-    def fillColor(self):
-        pass
-
-    """
-    def filling(self):
-        pass
-
-    def begin_fill(self):
-        pass
-
-    def end_fill(self):
-        pass
-    """
-
-    def reset(self):
-        pass
-
-    #def write(self):
-    #    pass
-
-    def showCursor(self):
-        pass
-
-    sc = showCursor
-
-    def hideCursor(self):
-        pass
-
-    hc = hideCursor
-'''
-
-'''
-# TODO - to be implemented
-class CanvasDict(dict):
-    # TODO - a way to add generic data to the canvas (such as fg or bg)
-    def __init__(self, width, height):
-        pass # TODO
-
-    def __getitem__(self):
-        pass
-
-    def __setitem__(self, value):
-        pass
-
-
-class Scene: # TODO - rename to "ChainCanvas" or "CanvasChain"?
-    def __init__(self, canvasesAndPositions):
-        self.canvasesAndPositions = []
-        # NOTE: The Canvas at index 0 is significant because it sets the size
-        # of the entire Scene. All other Canvases will be truncated to fit.
-
-        try:
-            for i, canvasAndPosition in enumerate(self.canvasesAndPositions):
-                canvas, top, left = canvasAndPosition
-                if not isinstance(canvas, Canvas):
-                    raise PyTextCanvasException('item at index %s does not have Canvas object' % (i))
-                if not isinstance(top, int):
-                    raise PyTextCanvasException('item at index %s does not have an int top value' % (i))
-                if not isinstance(left, int):
-                    raise PyTextCanvasException('item at index %s does not have an int left value' % (i))
-                self.canvasesAndPositions.appendCanvas(*(canvas, top, left))
-        except TypeError:
-            raise PyTextCanvasException('%r object is not iterable' % (canvasesAndPositions.__class__.__name__))
-
-    def __len__(self):
-        if self.canvasesAndPositions == []:
-            return 0
-        else:
-            return len(self.canvasesAndPositions[0][0])
-
-    def __str__(self):
-        pass # TODO
-
-    def __eq__(self, other):
-        pass # TODO - can be compared against Canvas objects and other Scene objects.
-
-    # TODO - implement __getitem__ and __setitem__ and __del__ as well? How do we move the canvases around?
-
-    def __iadd__(self, other):
-        pass # TODO - calls appendCanvas.
-
-    def appendCanvas(self, canvas, top, left):
-        pass
-
-    def moveCanvas(self, indexName, movex, movey):
-        pass # used to move the canvas around
-
-
-
-    def append(self, canvas, position):
-        pass
-'''
 
 
 if __name__ == '__main__':
