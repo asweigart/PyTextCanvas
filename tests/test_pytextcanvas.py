@@ -115,14 +115,6 @@ def test_colorifed_property():
     # TODO - test to make sure color information gets stored/negated.
 
 
-def test_truncate_property():
-    canvas = pytc.Canvas()
-    canvas.truncate = True
-    assert canvas.truncate == True
-    canvas.truncate = False
-    assert canvas.truncate == False
-
-
 def test_repr():
     canvas = pytc.Canvas()
     assert repr(canvas) == "<'Canvas' object, width=%s, height=%s>" % (pytc.DEFAULT_CANVAS_WIDTH, pytc.DEFAULT_CANVAS_HEIGHT)
@@ -257,7 +249,16 @@ def test_equality():
 def test_shift():
     canvas = pytc.Canvas(loads='1234\n5678\nabcd\nefgh')
     canvas.shift(1, 0)
-    shiftedCanvas = pytc.Canvas()
+    assert str(canvas) == ' 123\n 567\n abc\n efg'
+
+    canvas = pytc.Canvas(loads='1234\n5678\nabcd\nefgh')
+    canvas.shift(0, 1)
+    assert str(canvas) == '    \n1234\n5678\nabcd'
+
+    canvas = pytc.Canvas(loads='1234\n5678\nabcd\nefgh')
+    canvas.shift(1, 1)
+    assert str(canvas) == '    \n 123\n 567\n abc'
+
     # LEFT OFF
 
 def test_copy():

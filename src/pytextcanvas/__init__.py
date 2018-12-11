@@ -112,8 +112,6 @@ class Canvas:
 
         Currently, color is not supported and the `fg` and `bg` arguments do nothing.
         """
-        self._truncate = True # By default, text written beyond the edges of the canvas will raise exceptions, unless self._truncate is True.
-
         if width is None and height is None and loads is not None:
             # self.width and self.height are set based on the size of the loads string
             loadsLines = loads.splitlines() # TODO - how to handle \r\n cases?
@@ -289,23 +287,6 @@ class Canvas:
     @cursory.setter
     def cursory(self, value):
         self.goto(self._cursor[0], value)
-
-
-    @property
-    def truncate(self):
-        """
-        By default, attempting to write characters beyond the edges of the
-        canvas will raise PyTextCanvasException, unless `truncate` is set
-        to True.
-
-        If the `truncate` attribute is `True`, this will override any
-        `truncate` method argument settings.
-        """
-        return self._truncate
-
-    @truncate.setter
-    def truncate(self, value):
-        self._truncate = bool(value)
 
 
     def isOnCanvas(self, x, y):
@@ -772,7 +753,6 @@ class Canvas:
                 canvasCopy._bginfo[x][y] = self._bginfo[x + left][y + top]
 
         # Copy the various properties.
-        canvasCopy._truncate = self._truncate
         canvasCopy._cursor = self._cursor
         canvasCopy._colorfied = self._colorfied
 
@@ -783,17 +763,11 @@ class Canvas:
         return self.copy(0, 0, self.width, self.height)
 
 
-    def paste(self, canvasToPaste, left, top, truncate=True):
+    def paste(self, canvasToPaste, left, top):
         """
         Paste the character, foreground color, and background color data from
         `canvasToPaste` to this `Canvas` object.
-
-        If `truncate` is `False`, raise a `PyTextCanvasException` if any characters
-        are pasted beyond the edges of this `Canvas` object.
         """
-        if self._truncate: # The truncate setting overrides this truncate argument.
-            truncate = True
-
         # Paste the characters on this Canvas.
         for x in range(canvasToPaste.width):
             for y in range(canvasToPaste.height):
@@ -801,12 +775,10 @@ class Canvas:
                     self._chars[x + left][y + top] = canvasToPaste._chars[x][y]
                     self._fginfo[x + left][y + top] = canvasToPaste._fginfo[x][y]
                     self._bginfo[x + left][y + top] = canvasToPaste._bginfo[x][y]
-                elif not truncate:
-                    raise PyTextCanvasException('Attempted to paste beyond the edge of the Canvas at x %s y %s' % (x + left, y + top))
         self._strDirty = True
 
 
-    def loads(self, content, truncate=True):
+    def loads(self, content):
         r"""
         Load the multi-line string in `content` as the text on this canvas.
 
@@ -824,15 +796,6 @@ class Canvas:
         world!
         """
         # TODO - how to handle \r?
-        if self._truncate: # The truncate setting overrides this truncate argument.
-            truncate = True
-
-        if not truncate:
-            lines = content.splitlines()
-            if len(lines) > self.height:
-                raise PyTextCanvasException('content argument is too tall for this canvas, pass True for truncate to ignore this error')
-            if max([len(line) for line in lines]) > self.width:
-                raise PyTextCanvasException('content argument is too wide for this canvas, pass True for truncate to ignore this error')
 
         y = 0
         for line in str(content).splitlines():
@@ -1017,13 +980,10 @@ class Canvas:
         pass
     '''
 
-    def points(self, char, pointsIterable, truncate=True):
+    def points(self, char, pointsIterable):
         """
         Draws the `char` character at all the (x, y) tuple coordinates in `pointsIterable`.
         """
-        if self._truncate: # The truncate setting overrides this truncate argument.
-            truncate = True
-
         self._strDirty = True
 
         try:
@@ -1031,24 +991,18 @@ class Canvas:
                 if self.isOnCanvas(x, y):
                     self._chars[x][y] = char
                     self._strDirty = True
-                elif not truncate:
-                    raise PyTextCanvasException('shape includes positions beyond the edge of the canvas')
         except PyTextCanvasException:
             raise # Reraise the exception to keep its exception message.
         except Exception:
             raise PyTextCanvasException('pointsIterable argument must be an iterable of (x, y) integer tuples')
 
 
-    def square(self, char, left, top, length, filled=False, thickness=1, truncate=True):
+    def square(self, char, left, top, length, filled=False, thickness=1):
         """
         Draws a square composed of `char` characters. The square's topleft
         corner is specified by `left` and `top`. The size is specified by
         `length`. If `filled` is `True`, the interior is also filled in with
         `char` characers.
-
-        This method will raise `PyTextCanvasException` if the square goes
-        beyond the edges of the canvas, unless `truncate` is set to `True`
-        or the canvas's `truncate` attribute is `True`.
 
         >>> canvas = Canvas(7, 7)
         >>> canvas.square('x', 0, 0, 7)
@@ -1063,18 +1017,14 @@ class Canvas:
         xxooooo
         """
         pointsIterable = pybresenham.rectangle(left, top, length, length, filled, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
-    def rectangle(self, char, left, top, width, height, filled=False, thickness=1, truncate=True):
+    def rectangle(self, char, left, top, width, height, filled=False, thickness=1):
         """
         Draws a rectangle composed of `char` characters. The rectangle's topleft
         corner is specified by `left` and `top`. The size is specified by
         `width` and `height`. If `filled` is `True`, the interior is also filled in with
         `char` characers.
-
-        This method will raise `PyTextCanvasException` if the square goes
-        beyond the edges of the canvas, unless `truncate` is set to `True`
-        or the canvas's `truncate` attribute is `True`.
 
         >>> canvas = Canvas(6, 6)
         >>> canvas.rectangle('o', 0, 0, 6, 6)
@@ -1092,34 +1042,34 @@ class Canvas:
             raise NotImplementedError('The pytextcanvas module is under development and the filled, thickness, and endcap parameters are not implemented. You can contribute at https://github.com/asweigart/pytextcanvas')
 
         pointsIterable = pybresenham.rectangle(left, top, width, height, filled, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
-    def diamond(self, char, x, y, radius, filled=False, thickness=1, truncate=True):
+    def diamond(self, char, x, y, radius, filled=False, thickness=1):
         pointsIterable = pybresenham.diamond(x, y, radius, filled, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def line(self, char, x1, y1, x2, y2, thickness=1, endcap=None, truncate=True):
+    def line(self, char, x1, y1, x2, y2, thickness=1, endcap=None):
         pointsIterable = pybresenham.line(x1, y1, x2, y2, thickness, endcap)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def lines(self, char, points, closed=False, thickness=1, endcap=None, truncate=True):
+    def lines(self, char, points, closed=False, thickness=1, endcap=None):
         pointsIterable = pybresenham.lines(points, closed, thickness, endcap)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def polygon(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1, truncate=True):
+    def polygon(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1):
         pointsIterable = pybresenham.polygon(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def polygonVertices(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, truncate=True):
+    def polygonVertices(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0):
         pointsIterable = pybresenham.polygonVertices(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def floodFill(self, char, x, y, truncate=True):
+    def floodFill(self, char, x, y):
         points = set()
         for cx in range(self.width):
             for cy in range(self.height):
@@ -1127,17 +1077,17 @@ class Canvas:
                     points.add((cx, cy))
 
         pointsIterable = pybresenham.floodFill(points, x, y)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def circle(self, char, x, y, radius, filled=False, thickness=1, truncate=True):
+    def circle(self, char, x, y, radius, filled=False, thickness=1):
         pointsIterable = pybresenham.circle(x, y, radius, filled, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
-    def grid(self, char, gridLeft, gridTop, numBoxesWide, numBoxesHigh, boxWidth, boxHeight, thickness=1, truncate=True):
+    def grid(self, char, gridLeft, gridTop, numBoxesWide, numBoxesHigh, boxWidth, boxHeight, thickness=1):
         pointsIterable = pybresenham.grid(gridLeft, gridTop, numBoxesWide, numBoxesHigh, boxWidth, boxHeight, thickness)
-        self.points(char, pointsIterable, truncate)
+        self.points(char, pointsIterable)
 
 
 # TODO - should I use camelcase? I want to match the original Turtle module, but it uses, well, just lowercase.
