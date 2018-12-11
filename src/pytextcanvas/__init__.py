@@ -4,9 +4,6 @@ PyTextCanvas is a module for writing text and ascii art to a 2D canvas in Python
 
 """
 
-
-
-
 """
 TODO
 
@@ -45,9 +42,9 @@ __version__ = '0.0.3'
 import doctest
 import math
 
-#from colorama import Fore, Back, RED, GREEN, BLUE, BLACK, WHITE, CYAN, MAGENTA, YELLOW
+import colorama
+from colorama import Fore, Back
 import pybresenham
-
 
 import pytextcanvas.terminal
 
@@ -58,19 +55,22 @@ DEFAULT_CANVAS_HEIGHT = 25
 DEFAULT_FG = '#000000'
 DEFAULT_BG = '#ffffff'
 
-BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW = range(8)
+CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW = range(9)
+COLORAMA_FG_MAP = {CLEAR: Fore.RESET, BLACK: Fore.BLACK, WHITE: Fore.WHITE, RED: Fore.RED, GREEN: Fore.GREEN, BLUE: Fore.BLUE, CYAN: Fore.CYAN, MAGENTA: Fore.MAGENTA, YELLOW: Fore.YELLOW}
+COLORAMA_BG_MAP = {CLEAR: Back.RESET, BLACK: Back.BLACK, WHITE: Back.WHITE, RED: Back.RED, GREEN: Back.GREEN, BLUE: Back.BLUE, CYAN: Back.CYAN, MAGENTA: Back.MAGENTA, YELLOW: Back.YELLOW}
 
 # Terminal functions:
 getTerminalSize = pytextcanvas.terminal.getTerminalSize
 clearScreen = pytextcanvas.terminal.clearScreen
 
 
+# Initialize colorama module:
+colorama.init()
+
 
 def _checkForIntOrFloat(arg):
     if not isinstance(arg, (int, float)):
         raise PyTextCanvasException('argument must be int or float, not %s' % (arg.__class__.__name__))
-
-
 
 
 def isInside(point_x, point_y, area_left, area_top, area_width, area_height):
@@ -151,29 +151,20 @@ class Canvas:
         self._chars = [[None] * self._height for i in range(self._width)]
 
 
-        if fg is not None and fg not in range(8):
-            raise PyTextCanvasException('fg arg must be None or one of the BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
-        if bg is not None and bg not in range(8):
-            raise PyTextCanvasException('bg arg must be None or one of the BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        # NOTE: A None value for color is like a None value for character, while CLEAR would be similar to a space character.
+        if fg is not None and fg not in range(9):
+            raise PyTextCanvasException('fg arg must be None or one of the CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        if bg is not None and bg not in range(9):
+            raise PyTextCanvasException('bg arg must be None or one of the CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        self._fg = fg
+        self._bg = bg
 
         # The foreground & background of each cell in the canvas. These are
         # stored as one of the six color constants, which are ints 0-7. The None
-        # value represents the default canvas setting. If both fg and bg
-        # are set to None, this canvas isn't "colorfied" and doesn't have
-        # color information stored (to save memory).
-        if fg is None and bg is None:
-            # This canvas object doesn't store color information.
-            self._colorfied = False
-            self._fginfo = None
-            self._bginfo = None
-        else:
-            if fg is None:
-                fg = WHITE
-            if bg is None:
-                bg = BLACK
-            self._colorfied = True # This canvas object does store color information.
-            self._fginfo = [[None] * self._height for i in range(self._width)]
-            self._bginfo = [[None] * self._height for i in range(self._width)]
+        # value represents the RESET'd color in colorama.
+        # Currently we're sticking to the 8 colors in the colorama module. More might be added later.
+        self._fginfo = [[None] * self._height for i in range(self._width)]
+        self._bginfo = [[None] * self._height for i in range(self._width)]
         # TODO - the rest of the color implementation needs to be done.
 
         self._cursor = (0, 0) # The cursor is always set to integers.
@@ -184,6 +175,30 @@ class Canvas:
 
         self._strCache = None # Cached returned value from __str__()
         self._strDirty = True # If False, __str__() uses the cached value.
+
+
+    @property
+    def fg(self):
+        """The current foreground color. TODO"""
+        return self._fg
+
+    @fg.setter
+    def fg(self, value):
+        if value is not None and value not in range(9):
+            raise PyTextCanvasException('fg attribute must be None or one of the CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        self._fg = value
+
+    @property
+    def bg(self):
+        """The current background color. TODO"""
+        return self._bg
+
+    @bg.setter
+    def bg(self, value):
+        if value is not None and value not in range(9):
+            raise PyTextCanvasException('bg attribute must be None or one of the CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW constants.')
+        self._bg = value
+
 
 
     @property
@@ -236,24 +251,6 @@ class Canvas:
         50
         """
         return self._width * self._height
-
-
-    @property
-    def colorfied(self):
-        return self._colorfied
-
-    @colorfied.setter
-    def colorfied(self, value):
-        if not self._colorfied and value:
-            # Going from not colorfied to colorfied.
-            self._fginfo = [[None] * self._height for i in range(self._width)]
-            self._bginfo = [[None] * self._height for i in range(self._width)]
-        elif self._colorfied and not value:
-            # Going from colorfied to not colorfied.
-            self._fginfo = None
-            self._bginfo = None
-
-        self._colorfied = bool(value)
 
 
     @property
@@ -350,6 +347,7 @@ class Canvas:
         self._strCache = '\n'.join(result)
         return self._strCache
 
+
     def __len__(self):
         """Returns the length of this Canvas object, which is the length of
         its string as returned by str(), not the width * height.
@@ -358,8 +356,10 @@ class Canvas:
         each row, except for the last row."""
         return (self.width * self.height) + (self.height - 1)
 
+
     def __iadd__(self):
         pass # TODO
+
 
     def __getitem__(self, key):
         """Return the character in this Canvas object, specified by `key`.
@@ -611,11 +611,41 @@ class Canvas:
         return True
 
 
-    '''
-    def printCanvas(self):
-        """TODO Prints the canvas to the screen. Colors are displayed using Colorama."""
-        pass
-    '''
+    def print(self):
+        """Prints the canvas to the screen. The difference between calling
+        this method and passing the Canvas object to the print() function
+        is that this method will displays colors using Colorama."""
+        currentFgColor = CLEAR
+        currentBgColor = CLEAR
+        print(Fore.RESET + Back.RESET, end='')
+
+        for y in range(self._height):
+            for x in range(self._width):
+                # Set colorama fg color if the fg color has changed.
+                fg = self._fginfo[x][y]
+                if fg is None:
+                    fg = CLEAR
+                if fg != currentFgColor:
+                    print(COLORAMA_FG_MAP[fg], end='')
+                    currentFgColor = fg
+
+                # Set colorama bg color if the bg color has changed.
+                bg = self._bginfo[x][y]
+                if bg is None:
+                    bg = CLEAR
+                if bg != currentBgColor:
+                    print(COLORAMA_BG_MAP[bg], end='')
+                    currentBgColor = bg
+
+                # Display the character.
+                c = self._chars[x][y]
+                if c is None:
+                    c = ' '
+                print(c, end='') # TODO - see if there's ways to optimize this.
+            print()
+        print(Fore.RESET + Back.RESET, end='')
+
+
 
     def write(self, text, x=None, y=None):
         """
@@ -643,6 +673,8 @@ class Canvas:
         ABCorld!Hello world!
         Hello world!Hello wo
         """
+
+        # TODO - change this so that the cursor moves.
         if x is None:
             x = self.cursorx
         if y is None:
@@ -656,15 +688,10 @@ class Canvas:
                 break
 
             self._chars[cx][cy] = text[i - startIndex]
+            self._fginfo[cx][cy] = self._fg
+            self._bginfo[cx][cy] = self._bg
 
         self.cursor = self._convertSingleIndexToTupleIndexes((startIndex + len(text)) % self.area)
-
-
-
-
-
-
-
 
 
     def shift(self, xOffset, yOffset):
@@ -754,7 +781,6 @@ class Canvas:
 
         # Copy the various properties.
         canvasCopy._cursor = self._cursor
-        canvasCopy._colorfied = self._colorfied
 
         return canvasCopy
 
@@ -880,6 +906,8 @@ class Canvas:
         for y in range(0, self.height // 2):
             for x in range(0, self.width):
                 self._chars[x][y], self._chars[x][self.height - 1 - y] = self._chars[x][self.height - 1 - y], self._chars[x][y]
+                self._fginfo[x][y], self._fginfo[x][self.height - 1 - y] = self._fginfo[x][self.height - 1 - y], self._fginfo[x][y]
+                self._bginfo[x][y], self._bginfo[x][self.height - 1 - y] = self._bginfo[x][self.height - 1 - y], self._bginfo[x][y]
         self._strDirty = True
 
 
@@ -908,6 +936,8 @@ class Canvas:
         for x in range(0, self.width // 2):
             for y in range(0, self.height):
                 self._chars[x][y], self._chars[self.width - 1 - x][y] = self._chars[self.width - 1 - x][y], self._chars[x][y]
+                self._fginfo[x][y], self._fginfo[self.width - 1 - x][y] = self._fginfo[self.width - 1 - x][y], self._fginfo[x][y]
+                self._bginfo[x][y], self._bginfo[self.width - 1 - x][y] = self._bginfo[self.width - 1 - x][y], self._bginfo[x][y]
         self._strDirty = True
 
 
@@ -937,6 +967,8 @@ class Canvas:
         for x in range(self.width):
             for y in range(self.height):
                 self._chars[x][y] = char
+                self._fginfo[x][y] = self._fg
+                self._bginfo[x][y] = self._bg
         self._strDirty = True
 
 
@@ -972,6 +1004,8 @@ class Canvas:
             for y in range(self.height):
                 if self._chars[x][y] == oldChar:
                     self._chars[x][y] = newChar
+                    self._fginfo[x][y] = self.fg
+                    self._bginfo[x][y] = self.bg
                     self._strDirty = True
 
     '''
@@ -979,6 +1013,19 @@ class Canvas:
     def blit(self, dstCanvas):
         pass
     '''
+
+    def paint(self, x, y, fg=None, bg=None):
+        """
+        Change the foreground and/or background color of a cell on the canvas.
+
+        `fg` and `bg` are one of the color constants CLEAR, BLACK, WHITE, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW
+        """
+        if self.isOnCanvas(x, y):
+            if fg is not None:
+                self._fginfo[x][y] = fg
+            if bg is not None:
+                self._bginfo[x][y] = bg
+
 
     def points(self, char, pointsIterable):
         """
@@ -990,6 +1037,8 @@ class Canvas:
             for x, y in pointsIterable:
                 if self.isOnCanvas(x, y):
                     self._chars[x][y] = char
+                    self._fginfo[x][y] = self.fg
+                    self._bginfo[x][y] = self.bg
                     self._strDirty = True
         except PyTextCanvasException:
             raise # Reraise the exception to keep its exception message.
@@ -1044,8 +1093,8 @@ class Canvas:
         pointsIterable = pybresenham.rectangle(left, top, width, height, filled, thickness)
         self.points(char, pointsIterable)
 
-    def diamond(self, char, x, y, radius, filled=False, thickness=1):
-        pointsIterable = pybresenham.diamond(x, y, radius, filled, thickness)
+    def diamond(self, char, left, top, radius, filled=False, thickness=1):
+        pointsIterable = pybresenham.diamond(left, top, radius, filled, thickness)
         self.points(char, pointsIterable)
 
 
@@ -1059,13 +1108,13 @@ class Canvas:
         self.points(char, pointsIterable)
 
 
-    def polygon(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1):
-        pointsIterable = pybresenham.polygon(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
+    def polygon(self, char, centerx, centery, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0, filled=False, thickness=1):
+        pointsIterable = pybresenham.polygon(centerx, centery, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical, filled, thickness)
         self.points(char, pointsIterable)
 
 
-    def polygonVertices(self, char, x, y, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0):
-        pointsIterable = pybresenham.polygonVertices(x, y, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical)
+    def polygonVertices(self, char, centerx, centery, radius, sides, rotationDegrees=0, stretchHorizontal=1.0, stretchVertical=1.0):
+        pointsIterable = pybresenham.polygonVertices(centerx, centery, radius, sides, rotationDegrees, stretchHorizontal, stretchVertical)
         self.points(char, pointsIterable)
 
 
@@ -1080,8 +1129,8 @@ class Canvas:
         self.points(char, pointsIterable)
 
 
-    def circle(self, char, x, y, radius, filled=False, thickness=1):
-        pointsIterable = pybresenham.circle(x, y, radius, filled, thickness)
+    def circle(self, char, centerx, centery, radius, filled=False, thickness=1):
+        pointsIterable = pybresenham.circle(centerx, centery, radius, filled, thickness)
         self.points(char, pointsIterable)
 
 
