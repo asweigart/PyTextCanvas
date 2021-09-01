@@ -1,5 +1,8 @@
 """
 This script tests the speed of different ways of storing a 2D field of text.
+- list of lists, using [x][y] to access the 2D point
+- one long list, using y*width+x to access the 2D point
+- dictionary, using [(x, y)] to access the 2D point
 
 These tests show that the list-of-lists approach is faster and uses much less memory.
 """
